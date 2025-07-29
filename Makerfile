@@ -1,0 +1,10 @@
+.PHONY: build install clean
+
+build:
+	dpkg-deb --build nodeinfo
+
+install: build
+	sudo apt install ./nodeinfo.deb
+
+clean:
+	rm -f nodeinfo.deb

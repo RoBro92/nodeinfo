@@ -1,0 +1,33 @@
+name: Build and Release .deb
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🧱 Prepare .deb packaging structure
+        run: |
+          mkdir -p build/nodeinfo/usr/local/bin
+          mkdir -p build/nodeinfo/DEBIAN
+          cp usr/local/bin/nodeinfo build/nodeinfo/usr/local/bin/
+          cp debian/control build/nodeinfo/DEBIAN/
+          chmod 755 build/nodeinfo/usr/local/bin/nodeinfo
+
+      - name: 📦 Build .deb
+        run: |
+          dpkg-deb --build build/nodeinfo nodeinfo.deb
+
+      - name: 🚀 Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: nodeinfo.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
