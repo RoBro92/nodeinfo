@@ -68,7 +68,7 @@ def update_notes(vmid, vmtype, markdown):
             with open(config_path, "r") as f:
                 lines = f.readlines()
 
-            # Remove previous nodeinfo block
+            # Remove old block (from our previous version if it exists)
             start = None
             end = None
             for i, line in enumerate(lines):
@@ -81,12 +81,10 @@ def update_notes(vmid, vmtype, markdown):
             if start is not None and end is not None:
                 del lines[start:end + 1]
 
-            # Wrap new notes in clean block
-            new_notes = [f"# === nodeinfo start ===\n"]
-            new_notes += [f"# {line}\n" for line in markdown.splitlines()]
-            new_notes += [f"# === nodeinfo end ===\n"]
+            # Write just clean markdown lines as `#`, no wrappers
+            new_notes = [f"# {line}\n" for line in markdown.splitlines()]
 
-            # Prepend new block
+            # Combine new notes with rest of config
             new_config = new_notes + lines
 
             with open(config_path, "w") as f:
