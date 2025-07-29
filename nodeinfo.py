@@ -63,7 +63,24 @@ def generate_markdown(vmid, vmtype, hostname, os_name):
 
 def update_notes(vmid, vmtype, markdown):
     if vmtype == "lxc":
-        subprocess.run(["pct", "set", vmid, "--notes", markdown])
+        config_path = f"/etc/pve/lxc/{vmid}.conf"
+        try:
+            with open(config_path, "r") as f:
+                lines = f.readlines()
+
+            # Strip old notes (any line starting with '# === nodeinfo ===')
+            lines = [line for line in lines if not line.startswith("# === nodeinfo ===")]
+
+            # Add new notes
+            new_notes = [f"# === nodeinfo === {line.strip()}\n" for line in markdown.splitlines()]
+            new_config = new_notes + lines
+
+            with open(config_path, "w") as f:
+                f.writelines(new_config)
+
+            print(f"✅ Notes written to {config_path}")
+        except Exception as e:
+            print(f"❌ Failed to write LXC notes: {e}")
     else:
         subprocess.run(["qm", "set", vmid, "--notes", markdown])
 
