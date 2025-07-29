@@ -68,11 +68,25 @@ def update_notes(vmid, vmtype, markdown):
             with open(config_path, "r") as f:
                 lines = f.readlines()
 
-            # Strip old notes (any line starting with '# === nodeinfo ===')
-            lines = [line for line in lines if not line.startswith("# === nodeinfo ===")]
+            # Remove previous nodeinfo block
+            start = None
+            end = None
+            for i, line in enumerate(lines):
+                if line.strip() == "# === nodeinfo start ===":
+                    start = i
+                elif line.strip() == "# === nodeinfo end ===":
+                    end = i
+                    break
 
-            # Add new notes
-            new_notes = [f"# === nodeinfo === {line.strip()}\n" for line in markdown.splitlines()]
+            if start is not None and end is not None:
+                del lines[start:end + 1]
+
+            # Wrap new notes in clean block
+            new_notes = [f"# === nodeinfo start ===\n"]
+            new_notes += [f"# {line}\n" for line in markdown.splitlines()]
+            new_notes += [f"# === nodeinfo end ===\n"]
+
+            # Prepend new block
             new_config = new_notes + lines
 
             with open(config_path, "w") as f:
