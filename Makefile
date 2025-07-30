@@ -1,9 +1,8 @@
-# Makefile for building and releasing nodeinfo
-
 PYFILE := nodeinfo/usr/local/bin/nodeinfo
 VERSION := $(shell grep '^VERSION' $(PYFILE) | cut -d '"' -f2)
 DEBNAME := nodeinfo_v$(VERSION).deb
 DISTDIR := dist
+NOTES ?= Release v$(VERSION)
 
 .PHONY: deb release
 
