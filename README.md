@@ -116,7 +116,7 @@ This will:
 - `--update` command for checking latest version
 - `.deb` installer with postinstall prompts
 
-
+---
   
 ## 📁 Repo Structure
 

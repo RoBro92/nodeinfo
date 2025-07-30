@@ -2,7 +2,7 @@
 
 # 🛣️ NodeInfo Roadmap
 
-A living document to track the progress, updates, and future plans for the `nodeinfo` tool.
+A document to track the progress, updates, and future plans for the `nodeinfo` tool.
 
 ---
 
