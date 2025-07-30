@@ -44,9 +44,11 @@ nodeinfo --help`
 
 ## 🔧 Optional: Configure VLAN Names
 
-After install, you can configure friendly VLAN names, you will be prompted to do this after install and can edit this file easily:
+4. After install, you can configure friendly VLAN names, you will be prompted to do this after install and can edit this file easily:
 
-4. `nodeinfo --vlan`
+```bash
+nodeinfo --vlan`
+```
 
 This opens /etc/nodeinfo/vlan.conf where you can map VLAN tags to descriptions (e.g, 10=Hypervisors)
 
@@ -54,7 +56,9 @@ This opens /etc/nodeinfo/vlan.conf where you can map VLAN tags to descriptions (
 
 To remove nodeinfo completely you can run:
 
-  `nodeinfo --remove`
+```bash
+nodeinfo --remove`
+```
 
 This will:
 
@@ -68,10 +72,11 @@ This will:
 | Flag / Command    | Description                                      |
 |-------------------|--------------------------------------------------|
 | `<vmid>`          | ID of the VM or LXC container to inspect         |
-| `--version`, `-v` | Show installed version of `nodeinfo`             |
+| `--version`       | Show installed version of `nodeinfo`             |
 | `--vlan`          | Open the VLAN name mapping file in your editor   |
 | `update`          | Check for latest version and download            |
-| `--help`, `-h`    | Show usage help                                  |
+| `--help`          | Show usage help                                  |
+| `--remove`        | Fully remove nodeinfo                            |
 
 ---
 
