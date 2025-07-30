@@ -7,7 +7,7 @@ import os
 import re
 import requests
 
-VERSION = "0.2.8"
+VERSION = "0.2.8.1"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 if "--version" in sys.argv or "-v" in sys.argv:
@@ -206,7 +206,7 @@ def get_os_update_info(vmid, vmtype):
         os_info = "Unavailable"
 
     try:
-        update_stamp = run_cmd(["pct", vmid, "exec", "--", "stat", "-c", "%y", "/var/lib/apt/periodic/update-success-stamp"])
+        update_stamp = run_cmd(["pct", "exec", vmid, "--", "stat", "-c", "%y", "/var/lib/apt/periodic/update-success-stamp"])
     except Exception:
         update_stamp = "Unknown"
 
@@ -225,7 +225,6 @@ def get_os_update_info(vmid, vmtype):
 - **Package status**: {upgrade_summary}"""
 
 def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
-    today = datetime.date.today().isoformat()
     return f"""🖥️ **Container/VM Information**
 
 - **Hostname**: {hostname}
@@ -247,12 +246,6 @@ def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
 📝 **User Notes**
 
 *(Add any relevant notes below. This section will be preserved on updates.)*
-
-⚠️ **Issues & Fixes**
-
-| Date       | Issue         | Fix / Workaround              |
-|------------|---------------|-------------------------------|
-| {today} | Example issue | Description of how you fixed it |
 """
 
 
@@ -278,7 +271,7 @@ def update_notes(vmid, vmtype, markdown):
                     print("❌ Update cancelled.")
                     return False
 
-            # Extract existing nodeinfo block and preserve User Notes and Issues & Fixes sections
+            # Extract existing nodeinfo block and preserve only User Notes section
             start = end = None
             for i, line in enumerate(lines):
                 if line.strip() == "# === nodeinfo start ===":
@@ -288,47 +281,27 @@ def update_notes(vmid, vmtype, markdown):
                     break
 
             preserved_user_notes = []
-            preserved_issues_fixes = []
             if start is not None and end is not None:
                 nodeinfo_block = lines[start + 1:end]
-
-                # Find User Notes and Issues & Fixes sections
+                # Find User Notes section
                 user_notes_start = None
                 user_notes_end = None
-                issues_start = None
-                issues_end = None
                 for idx, line in enumerate(nodeinfo_block):
                     stripped = line.strip()
                     if stripped == "# 📝 **User Notes**":
                         user_notes_start = idx
-                    elif stripped == "# ⚠️ **Issues & Fixes**":
-                        issues_start = idx
-                # User Notes end: before Issues or next header/blank
+                        break
                 if user_notes_start is not None:
+                    # Find end of User Notes section
                     user_notes_end = len(nodeinfo_block)
                     for i in range(user_notes_start + 1, len(nodeinfo_block)):
                         line = nodeinfo_block[i].strip()
-                        if i == issues_start:
-                            user_notes_end = i
-                            break
                         if (line.startswith("# 🖥️") or line.startswith("# 🔒")
                                 or line.startswith("# 🔄") or line.startswith("# 📝") and i != user_notes_start
                                 or line == ""):
-                            if line != "# ⚠️ **Issues & Fixes**":
-                                user_notes_end = i
-                                break
-                    preserved_user_notes = nodeinfo_block[user_notes_start:user_notes_end]
-                # Issues & Fixes end: next header/blank
-                if issues_start is not None:
-                    issues_end = len(nodeinfo_block)
-                    for i in range(issues_start + 1, len(nodeinfo_block)):
-                        line = nodeinfo_block[i].strip()
-                        if (line.startswith("# 🖥️") or line.startswith("# 🔒")
-                                or line.startswith("# 🔄") or line.startswith("# 📝") and i != issues_start
-                                or line == ""):
-                            issues_end = i
+                            user_notes_end = i
                             break
-                    preserved_issues_fixes = nodeinfo_block[issues_start:issues_end]
+                    preserved_user_notes = nodeinfo_block[user_notes_start:user_notes_end]
                 # Remove existing nodeinfo block
                 del lines[start:end + 1]
 
@@ -344,28 +317,14 @@ def update_notes(vmid, vmtype, markdown):
                         return True
                 return False
 
-            # Fallback: If preserved User Notes/Issues sections are missing in new markdown, append them at the end (before end marker)
-            # Always avoid duplicating the header line if already present.
-            # 1. User Notes
+            # Fallback: If preserved User Notes section is missing in new markdown, append it at the end (before end marker)
             if preserved_user_notes:
                 header = "📝 **User Notes**"
-                # Check if header present in markdown
                 if not section_in_markdown(header, new_notes):
-                    # Add header and content
                     new_notes.append(f"# {header}\n")
                     new_notes.extend(preserved_user_notes[1:] if len(preserved_user_notes) > 1 else [])
                 else:
-                    # If header present, only add content if the markdown didn't include the preserved content
-                    # (Avoid duplicate lines)
                     pass  # Already included by regeneration
-            # 2. Issues & Fixes
-            if preserved_issues_fixes:
-                header = "⚠️ **Issues & Fixes**"
-                if not section_in_markdown(header, new_notes):
-                    new_notes.append(f"# {header}\n")
-                    new_notes.extend(preserved_issues_fixes[1:] if len(preserved_issues_fixes) > 1 else [])
-                else:
-                    pass
 
             new_notes.append("# === nodeinfo end ===\n")
 
