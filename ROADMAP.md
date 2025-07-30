@@ -30,7 +30,6 @@ _Work in progress features and experiments_
 - [ ] Add centralized update deployment across PVE cluster
 - [ ] Improve accuracy of DNS/gateway reachability checks
 
-_Use this space to add incremental notes as work progresses._
 
 ---
 
