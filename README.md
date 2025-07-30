@@ -139,6 +139,8 @@ nodeinfo --ssh
 - 📌 Template-based note rendering
 
 ### ✅ Completed
+- SSH Implementation for VM's
+- -y flag for skipping overwrite checks
 - Debug mode (`--debug`)
 - SSH status detection & key injection
 - DNS and gateway health checks
