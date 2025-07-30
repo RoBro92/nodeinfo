@@ -8,7 +8,7 @@ import re
 import requests
 import json
 
-VERSION = "1.0.3"
+VERSION = "1.0.5"
 GITHUB_REPO = "RoBro92/nodeinfo"
 SSH_CONFIG_FILE = "/etc/nodeinfo/ssh.conf"
 
@@ -558,7 +558,11 @@ def ensure_ssh_conf_exists():
 # This file is used to manually define SSH access for VMs that don't support guest agent.
 # The SSH private key /etc/nodeinfo/id_nodeinfo is used for authentication.
 # Run the following on each VM to authorize access:
-#   ssh-copy-id -i /etc/nodeinfo/id_nodeinfo.pub root@<ip>
+#   nodeinfo --ssh-send
+# Ensure the SSH server is running and accessible on the defined ports.
+# You can edit this file with your preferred text editor, e.g.:
+#   nano /etc/nodeinfo/ssh.conf
+# Note: If you change the SSH key, you must update this file accordingly.
 """
                 )
             debug_print("Creating default SSH config file at /etc/nodeinfo/ssh.conf")
@@ -689,6 +693,70 @@ def main():
     updated = update_notes(vmid, vmtype, markdown, auto_overwrite=auto_overwrite)
     if updated:
         print(f"✅ Notes updated for {vmtype.upper()} ID {vmid}")
+
+    # If QEMU Guest Agent is not available, prompt for SSH access
+    if vmtype == "qemu":
+        guest_agent_available = run_cmd(["qm", "guest", "cmd", vmid, "get-host-name"]) != "Unavailable"
+        if not guest_agent_available:
+            print()
+            resp = input("Would you like to enable SSH access to gather more detailed information? (y/N): ").strip().lower()
+            if resp == "y":
+                # Use IP from earlier, default port 22
+                ssh_line = f"{vmid}={ip}:22"
+                debug_print(f"Preparing to append SSH config: {ssh_line}")
+                # Read current SSH config to avoid duplicates
+                try:
+                    exists = False
+                    if os.path.exists(SSH_CONFIG_FILE):
+                        with open(SSH_CONFIG_FILE, "r") as f:
+                            for line in f:
+                                if line.strip() == ssh_line:
+                                    exists = True
+                                    break
+                    if not exists:
+                        with open(SSH_CONFIG_FILE, "a") as f:
+                            f.write(ssh_line + "\n")
+                        print(f"📄 Added SSH config: {ssh_line}")
+                        debug_print(f"Appended SSH config to {SSH_CONFIG_FILE}")
+                    else:
+                        debug_print("SSH config already present, skipping append.")
+                except Exception as e:
+                    print(f"❌ Failed to write to SSH config: {e}")
+                    debug_print(f"Error writing SSH config: {e}")
+                # Send SSH key with retries and connectivity check
+                key_path = "/etc/nodeinfo/id_nodeinfo.pub"
+                ssh_target = f"root@{ip}"
+                print(f"🔌 Testing SSH connection to {ssh_target} before sending key...")
+                ssh_test = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", ssh_target, "exit"],
+                                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if ssh_test.returncode != 0:
+                    print(f"❌ SSH connection to {ssh_target} failed. Skipping key deployment.")
+                    debug_print(f"Initial SSH connectivity test failed for {ssh_target}")
+                    print(f"💡 SSH server may not be installed or running inside the VM.")
+                    print("👉 To enable SSH access, run the following inside your VM:")
+                    print()
+                    print("   sudo apt update && sudo apt install -y openssh-server && sudo systemctl enable ssh && sudo systemctl start ssh")
+                    print()
+                    print(f"🌀 Then re-run: nodeinfo {vmid}")
+                else:
+                    print(f"✅ SSH reachable. Proceeding to send SSH key to {ssh_target}")
+                    for attempt in range(1, 4):
+                        print(f"🔁 Attempt {attempt} to send SSH key...")
+                        debug_print(f"Running: ssh-copy-id -i {key_path} {ssh_target} (Attempt {attempt})")
+                        result = subprocess.run(["ssh-copy-id", "-i", key_path, ssh_target], capture_output=True)
+                        if result.returncode == 0:
+                            print(f"✅ SSH key successfully copied to {ssh_target}")
+                            debug_print("SSH key copy succeeded.")
+                            print("🔄 Regenerating markdown with SSH info...")
+                            debug_print("Regenerating markdown and updating notes after SSH enablement.")
+                            # Re-fetch info to reflect SSH
+                            markdown2 = generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan, gateway, dns_servers, gateway_status, dns_status)
+                            update_notes(vmid, vmtype, markdown2, auto_overwrite=True)
+                            break
+                        else:
+                            debug_print(f"ssh-copy-id attempt {attempt} failed: {result.stderr.decode().strip()}")
+                            if attempt == 3:
+                                print(f"❌ Failed to copy SSH key to {ssh_target} after 3 attempts.")
 
 
 if __name__ == "__main__":
