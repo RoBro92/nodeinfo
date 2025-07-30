@@ -6,17 +6,25 @@ import datetime
 import os
 import re
 
-VERSION = "0.1.25"
+VERSION = "0.1.4"
+GITHUB_REPO = "RoBro92/nodeinfo"
 
-if "--version" in sys.argv or "-v" in sys.argv:
+
+def print_version():
     print(f"nodeinfo version {VERSION}")
     sys.exit(0)
+
+
+if "--version" in sys.argv or "-v" in sys.argv:
+    print_version()
+
 
 def run_cmd(cmd):
     try:
         return subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode().strip()
     except:
         return "Unavailable"
+
 
 def get_vm_type(vmid):
     if run_cmd(["qm", "status", vmid]) != "Unavailable":
@@ -27,10 +35,12 @@ def get_vm_type(vmid):
         print(f"❌ VM/CT ID {vmid} not found.")
         sys.exit(1)
 
+
 def get_hostname(vmid, vmtype):
     if vmtype == "lxc":
         return run_cmd(["pct", "exec", vmid, "--", "hostname"])
     return f"vm-{vmid}"
+
 
 def get_os(vmid, vmtype):
     if vmtype == "lxc":
@@ -40,12 +50,9 @@ def get_os(vmid, vmtype):
                 return line.split("=")[1].strip('"')
     return "VM (OS not directly accessible)"
 
-def get_network_info(vmid, vmtype):
-    if vmtype == "lxc":
-        conf_path = f"/etc/pve/lxc/{vmid}.conf"
-    else:
-        conf_path = f"/etc/pve/qemu-server/{vmid}.conf"
 
+def get_network_info(vmid, vmtype):
+    conf_path = f"/etc/pve/lxc/{vmid}.conf" if vmtype == "lxc" else f"/etc/pve/qemu-server/{vmid}.conf"
     ip = "Unknown"
     vlan = "Unknown"
 
@@ -65,26 +72,25 @@ def get_network_info(vmid, vmtype):
         pass
 
     if ip == "Unknown":
-        if vmtype == "lxc":
-            try:
-                ip = run_cmd(["pct", "exec", vmid, "--", "hostname", "-I"]).split()[0]
-            except:
-                pass
-        else:
-            try:
-                output = run_cmd(["qm", "agent", vmid, "exec", "--", "ip", "a"])
-                for line in output.splitlines():
-                    if "inet " in line and "127." not in line:
-                        ip = line.strip().split()[1].split("/")[0]
-                        break
-            except:
-                pass
+        try:
+            ip = run_cmd(["pct", "exec", vmid, "--", "hostname", "-I"]).split()[0]
+        except:
+            pass
 
     return ip, vlan
 
+
+def vlan_to_name(vlan):
+    mapping = {
+        "9": "Infrastructure",
+        "10": "Hypervisors",
+        "20": "Media",
+    }
+    return mapping.get(vlan, "Unknown")
+
+
 def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
     today = datetime.date.today().isoformat()
-
     return f"""🖥️ **Container/VM Information**
 
 - **Hostname**: {hostname}
@@ -113,13 +119,6 @@ def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
 | {today} | Example issue | Description of how you fixed it |
 """
 
-def vlan_to_name(vlan):
-    mapping = {
-        "9": "Infrastructure",
-        "10": "Hypervisors",
-        "20": "Media",
-    }
-    return mapping.get(vlan, "Unknown")
 
 def update_notes(vmid, vmtype, markdown):
     if vmtype == "lxc":
@@ -128,9 +127,7 @@ def update_notes(vmid, vmtype, markdown):
             with open(config_path, "r") as f:
                 lines = f.readlines()
 
-            # Remove old nodeinfo block
-            start = None
-            end = None
+            start = end = None
             for i, line in enumerate(lines):
                 if line.strip() == "# === nodeinfo start ===":
                     start = i
@@ -141,7 +138,6 @@ def update_notes(vmid, vmtype, markdown):
             if start is not None and end is not None:
                 del lines[start:end + 1]
 
-            # Clean new note block
             new_notes = [f"# {line}\n" for line in markdown.splitlines()]
             new_config = new_notes + lines
 
@@ -154,9 +150,33 @@ def update_notes(vmid, vmtype, markdown):
     else:
         subprocess.run(["qm", "set", vmid, "--notes", markdown])
 
+
+def do_self_update():
+    try:
+        import requests
+    except ImportError:
+        print("❌ 'requests' module not available. Install with 'pip install requests'")
+        return
+
+    try:
+        print("🔍 Checking for updates on GitHub...")
+        response = requests.get(f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest")
+        if response.status_code != 200:
+            raise Exception("GitHub API error")
+        latest = response.json()["tag_name"].lstrip("v")
+
+        if latest != VERSION:
+            print(f"📦 New version available: {latest} (current: {VERSION})")
+            print("🔗 Download: https://github.com/{}/releases/latest/download/nodeinfo_v{}.deb".format(GITHUB_REPO, latest))
+        else:
+            print(f"✅ You are on the latest version ({VERSION})")
+    except Exception as e:
+        print(f"❌ Failed to check for updates: {e}")
+
+
 def main():
     if len(sys.argv) < 2:
-        print("Usage: nodeinfo <vmid> | update")
+        print("Usage: nodeinfo <vmid> | --version | update")
         sys.exit(1)
 
     if sys.argv[1] == "update":
@@ -173,15 +193,6 @@ def main():
     update_notes(vmid, vmtype, markdown)
     print(f"✅ Notes updated for {vmtype.upper()} ID {vmid}")
 
+
 if __name__ == "__main__":
     main()
-
-def do_self_update():
-    repo_url = "https://github.com/yourusername/nodeinfo.git"
-    print("🔄 Pulling latest version from GitHub...")
-
-    try:
-        subprocess.run(["git", "pull"], cwd="/usr/local/bin", check=True)
-        print("✅ Update complete.")
-    except subprocess.CalledProcessError:
-        print("❌ Failed to update. Please pull manually.")

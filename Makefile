@@ -27,4 +27,4 @@ release: deb
 
 	@echo "🚀 Creating GitHub release and uploading .deb..."
 	gh release delete v$(VERSION) -y || true
-	gh release create v$(VERSION) $(DISTDIR)/$(DEBNAME) --title "v$(VERSION)" --notes "Automatic release for v$(VERSION)"
+	gh release create v$(VERSION) $(DISTDIR)/$(DEBNAME) --title "v$(VERSION)" --notes "$(NOTES)"
