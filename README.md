@@ -1,9 +1,10 @@
-# 📟 nodeinfo
+<img width="1024" height="1024" alt="nodeinfo" src="https://github.com/user-attachments/assets/2d1f0f1f-85a3-4405-b45f-030bed94782e" />
 
 **nodeinfo** is a lightweight CLI tool for inspecting and documenting Proxmox virtual machines (VMs) and LXC containers.  
 It outputs system details, update status, and network configuration, then writes a structured summary directly into the Notes field of the specified VM or container.
 
 ---
+
 
 ## ⚙️ Features
 
