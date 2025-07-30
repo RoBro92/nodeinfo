@@ -1,33 +1,32 @@
-name: Build and Release .deb
+name: Build and Release
 
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'  # triggers on version tags like v1.2
 
 jobs:
-  build:
+  build-deb:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: 🧱 Prepare .deb packaging structure
+      - name: Set up dependencies
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev make
+
+      - name: Build .deb package
+        run: make deb
+
+      - name: Rename .deb file with version
         run: |
-          mkdir -p build/nodeinfo/usr/local/bin
-          mkdir -p build/nodeinfo/DEBIAN
-          cp usr/local/bin/nodeinfo build/nodeinfo/usr/local/bin/
-          cp debian/control build/nodeinfo/DEBIAN/
-          chmod 755 build/nodeinfo/usr/local/bin/nodeinfo
+          VERSION="${GITHUB_REF##*/}"
+          mv dist/nodeinfo.deb "dist/nodeinfo_${VERSION}.deb"
 
-      - name: 📦 Build .deb
-        run: |
-          dpkg-deb --build build/nodeinfo nodeinfo.deb
-
-      - name: 🚀 Upload Release Asset
-        uses: softprops/action-gh-release@v1
+      - name: Upload .deb to release
+        uses: softprops/action-gh-release@v2
         with:
-          files: nodeinfo.deb
+          files: dist/nodeinfo_*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
