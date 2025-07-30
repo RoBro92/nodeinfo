@@ -6,7 +6,7 @@ import datetime
 import os
 import re
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 
 if "--version" in sys.argv or "-v" in sys.argv:
     print(f"nodeinfo version {VERSION}")
