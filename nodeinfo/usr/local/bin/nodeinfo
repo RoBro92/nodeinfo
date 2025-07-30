@@ -6,9 +6,11 @@ import datetime
 import os
 import re
 import requests
+import json
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 GITHUB_REPO = "RoBro92/nodeinfo"
+SSH_CONFIG_FILE = "/etc/nodeinfo/ssh.conf"
 
 DEBUG_FLAG_FILE = "/tmp/nodeinfo_debug"
 def is_debug_enabled():
@@ -34,8 +36,10 @@ def print_help():
 Options:
   --version, -v     Show current nodeinfo version
   --vlan            Open VLAN name config file for editing
+  --ssh             Open SSH config file for editing
+  --ssh-send        Push SSH public key to all VMs listed in SSH config
   update            Check for latest version and display download link
-  --help.           Show this help message
+  --help            Show this help message
   --debug           Enable debug mode (creates {DEBUG_FLAG_FILE} file)
   --remove          Uninstall nodeinfo and remove all files
   --yes, -y         Automatically overwrite existing notes without confirmation (still prompts for backup)
@@ -44,6 +48,8 @@ Examples:
   nodeinfo 101             # Inspect VM/LXC with ID 101
   nodeinfo 101 -y          # Inspect VM/LXC with ID 101 and auto-overwrite notes
   nodeinfo --vlan          # Edit VLAN name mappings
+  nodeinfo --ssh           # Edit SSH mappings for VMs
+  nodeinfo --ssh-send      # Push SSH public key to all VMs in SSH config
   nodeinfo update          # Check if a new version is available
   nodeinfo --version       # Show version number
 """)
@@ -62,6 +68,11 @@ def run_cmd(cmd):
 def get_vm_type(vmid):
     if run_cmd(["qm", "status", vmid]) != "Unavailable":
         vmtype = "qemu"
+        # QEMU Guest Agent detection
+        if run_cmd(["qm", "guest", "cmd", vmid, "get-host-name"]) != "Unavailable":
+            debug_print("QEMU Guest Agent detected and will be used for data collection.")
+        else:
+            debug_print("QEMU Guest Agent not available. Data will be limited unless SSH is configured.")
     elif run_cmd(["pct", "status", vmid]) != "Unavailable":
         vmtype = "lxc"
     else:
@@ -75,7 +86,11 @@ def get_hostname(vmid, vmtype):
     if vmtype == "lxc":
         hostname = run_cmd(["pct", "exec", vmid, "--", "hostname"])
     else:
-        hostname = f"vm-{vmid}"
+        guest_hostname = run_cmd(["qm", "guest", "cmd", vmid, "get-host-name"])
+        if guest_hostname != "Unavailable":
+            hostname = guest_hostname.strip('"')
+        else:
+            hostname = f"vm-{vmid}"
     debug_print(f"Hostname: {hostname}")
     return hostname
 
@@ -91,6 +106,13 @@ def get_os(vmid, vmtype):
         os_name = "Unknown"
         debug_print(f"OS: {os_name}")
         return os_name
+    guest_osinfo = run_cmd(["qm", "guest", "cmd", vmid, "get-osinfo"])
+    if guest_osinfo != "Unavailable":
+        match = re.search(r'"pretty-name":\s*"([^"]+)"', guest_osinfo)
+        if match:
+            os_name = match.group(1)
+            debug_print(f"OS: {os_name}")
+            return os_name
     os_name = "VM (OS not directly accessible)"
     debug_print(f"OS: {os_name}")
     return os_name
@@ -122,6 +144,22 @@ def get_network_info(vmid, vmtype):
         except Exception:
             pass
 
+    # For VM, try QEMU Guest Agent for network info
+    if vmtype != "lxc":
+        guest_net = run_cmd(["qm", "guest", "cmd", vmid, "network-get-interfaces"])
+        if guest_net != "Unavailable":
+            try:
+                interfaces = json.loads(guest_net)
+                for iface in interfaces:
+                    for ip_data in iface.get("ip-addresses", []):
+                        if ip_data.get("ip-address", "").startswith("192.") or ip_data.get("ip-address", "").startswith("10."):
+                            ip = ip_data["ip-address"]
+                            break
+                    if ip != "Unknown":
+                        break
+            except Exception as e:
+                debug_print(f"Failed to parse guest agent network info: {e}")
+
     debug_print(f"IP: {ip}, VLAN: {vlan}")
     return ip, vlan
 
@@ -147,6 +185,59 @@ def vlan_to_name(vlan):
 
 
 def generate_ssh_info(vmid, vmtype):
+    if os.path.exists(SSH_CONFIG_FILE):
+        try:
+            with open(SSH_CONFIG_FILE, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith(f"{vmid}="):
+                        ssh_target = line.split("=", 1)[1].strip()
+                        debug_print(f"Found SSH mapping for VMID {vmid}: {ssh_target}")
+                        if ":" in ssh_target:
+                            ssh_host, ssh_port = ssh_target.split(":")
+                        else:
+                            ssh_host = ssh_target
+                            ssh_port = "22"
+
+                        debug_print(f"Trying SSH connection to {ssh_host}:{ssh_port} using key /etc/nodeinfo/id_nodeinfo")
+                        # Try connecting via SSH
+                        ssh_cmd = ["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", ssh_host, "pgrep", "-x", "sshd"]
+                        result = subprocess.run(ssh_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        if result.returncode != 0:
+                            return "- **SSH Access**: ❌ Configured but unreachable"
+                        debug_print("SSH connection successful.")
+
+                        # Pull sshd_config and parse it
+                        config_output = subprocess.check_output(["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", ssh_host, "cat /etc/ssh/sshd_config"], stderr=subprocess.DEVNULL).decode()
+                        password_auth = pubkey_auth = root_login = "Unknown"
+
+                        for line in config_output.splitlines():
+                            line = line.strip()
+                            if line.startswith("PasswordAuthentication"):
+                                password_auth = line.split()[1].lower()
+                            elif line.startswith("PubkeyAuthentication"):
+                                pubkey_auth = line.split()[1].lower()
+                            elif line.startswith("PermitRootLogin"):
+                                root_login = line.split()[1].lower()
+
+                        debug_print(f"Parsed SSH config:\nPasswordAuth={password_auth}, PubkeyAuth={pubkey_auth}, PermitRootLogin={root_login}")
+
+                        if password_auth == "yes":
+                            auth_method = "Password"
+                        elif pubkey_auth == "yes":
+                            auth_method = "SSH Key"
+                        else:
+                            auth_method = "Disabled"
+
+                        return f"""- **SSH Access**: 🟢 Configured via SSH
+- **SSH Host**: {ssh_host}
+- **SSH Port**: {ssh_port}
+- **Auth Method**: {auth_method}
+- **Allow Root Login**: {root_login}"""
+        except Exception as e:
+            debug_print(f"Failed to fetch SSH info: {e}")
+
+    # If not found in ssh.conf, proceed with original logic
     if vmtype != "lxc":
         return "- **SSH Access**: Unknown (non-LXC VM)"
 
@@ -218,7 +309,7 @@ def generate_ssh_info(vmid, vmtype):
 
 def get_os_update_info(vmid, vmtype):
     if vmtype != "lxc":
-        return "OS version and update info not available for VMs"
+        return "OS version and update info not available for VMs. For full support, enable QEMU Guest Agent or provide SSH config."
     try:
         update_stamp = run_cmd(["pct", "exec", vmid, "--", "stat", "-c", "%y", "/var/lib/apt/periodic/update-success-stamp"])
     except Exception:
@@ -264,9 +355,10 @@ def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan, gateway, dns_se
 {get_os_update_info(vmid, vmtype)}
 """
 
-
     markdown = re.sub(r'(?<!\n)🖥️', r'\n🖥️', markdown)
-
+    # Optionally append VM data limitation note
+    if vmtype != "lxc":
+        markdown += "\n\n📝 *Note: VM data is limited. For best results, install QEMU Guest Agent or provide SSH access in /etc/nodeinfo/ssh.conf*"
     return markdown
 def get_network_status(vmid, vmtype):
     gateway = "Unavailable"
@@ -445,9 +537,40 @@ def do_self_update():
         print(f"❌ Failed to update: {e}")
 
 
+def ensure_ssh_conf_exists():
+    """Ensure SSH config file exists with instructional comments, and generate keypair if needed."""
+    key_path = "/etc/nodeinfo/id_nodeinfo"
+    pub_key_path = f"{key_path}.pub"
+
+    # Generate SSH key pair if it doesn't exist
+    if not os.path.exists(key_path):
+        subprocess.run(["ssh-keygen", "-t", "rsa", "-b", "2048", "-f", key_path, "-N", ""])
+        debug_print(f"Generated SSH keypair at {key_path}")
+
+    # Create ssh.conf with instructions if it doesn't exist
+    if not os.path.exists(SSH_CONFIG_FILE):
+        try:
+            os.makedirs(os.path.dirname(SSH_CONFIG_FILE), exist_ok=True)
+            with open(SSH_CONFIG_FILE, "w") as f:
+                f.write(
+"""# Format: <vmid>=<ip_or_hostname>:<port>
+# Example: 105=192.168.10.45:22
+# This file is used to manually define SSH access for VMs that don't support guest agent.
+# The SSH private key /etc/nodeinfo/id_nodeinfo is used for authentication.
+# Run the following on each VM to authorize access:
+#   ssh-copy-id -i /etc/nodeinfo/id_nodeinfo.pub root@<ip>
+"""
+                )
+            debug_print("Creating default SSH config file at /etc/nodeinfo/ssh.conf")
+        except Exception as e:
+            debug_print(f"Failed to create SSH config: {e}")
+
 def main():
+    # Ensure SSH config exists at startup
+    ensure_ssh_conf_exists()
+
     if len(sys.argv) < 2:
-        print("Usage: nodeinfo <vmid> | --version | update | --vlan | --remove")
+        print("Usage: nodeinfo <vmid> | --version | update | --vlan | --ssh | --remove")
         sys.exit(1)
 
     if sys.argv[1] in ("--version", "-v"):
@@ -481,6 +604,50 @@ def main():
             print(f"❌ Failed to open VLAN config: {e}")
         return
 
+    if sys.argv[1] == "--ssh":
+        # Open SSH config for editing
+        editor = os.environ.get("EDITOR", "nano")
+        ensure_ssh_conf_exists()
+        try:
+            subprocess.run([editor, SSH_CONFIG_FILE])
+        except Exception as e:
+            print(f"❌ Failed to open SSH config: {e}")
+        return
+
+    if sys.argv[1] == "--ssh-send":
+        if not os.path.exists(SSH_CONFIG_FILE):
+            print(f"❌ SSH config file not found: {SSH_CONFIG_FILE}")
+            return
+
+        key_path = "/etc/nodeinfo/id_nodeinfo.pub"
+        if not os.path.exists(key_path):
+            print(f"❌ SSH public key not found: {key_path}")
+            return
+
+        try:
+            with open(SSH_CONFIG_FILE, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    vmid, ssh_target = line.split("=", 1)
+                    if ":" in ssh_target:
+                        ssh_host, _ = ssh_target.split(":")
+                    else:
+                        ssh_host = ssh_target
+
+                    debug_print(f"Processing SSH send for VMID {vmid} -> {ssh_host}")
+                    debug_print(f"Running: ssh-copy-id -i {key_path} root@{ssh_host}")
+                    print(f"🔐 Sending SSH key to VMID {vmid} ({ssh_host})...")
+                    result = subprocess.run(["ssh-copy-id", "-i", key_path, f"root@{ssh_host}"])
+                    if result.returncode == 0:
+                        print(f"✅ SSH key successfully copied to {ssh_host}")
+                    else:
+                        print(f"❌ Failed to copy SSH key to {ssh_host}")
+        except Exception as e:
+            print(f"❌ Error processing SSH config: {e}")
+        return
+
     if sys.argv[1] == "--remove":
         confirm = input("⚠️  This will completely uninstall nodeinfo and remove all its files. Continue? (y/n): ").lower()
         if confirm != 'y':
@@ -509,6 +676,7 @@ def main():
     auto_overwrite = False
     if "-y" in sys.argv or "--yes" in sys.argv:
         auto_overwrite = True
+        debug_print("Skipping overwrite prompt due to -y flag")
 
     vmid = sys.argv[1]
     vmtype = get_vm_type(vmid)

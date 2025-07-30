@@ -60,13 +60,13 @@ See full changelog [here](./CHANGELOG.md)
 1. Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
 
 ```bash 
-wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v1.0.2.deb
+wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v1.0.3.deb
 ```
    
 2. Install the package:
 
 ```bash
-dpkg -i nodeinfo_v1.0.2.deb
+dpkg -i nodeinfo_v1.0.3.deb
 ```
 
 3. Once installed you can run:
@@ -117,6 +117,7 @@ This will:
 | `--help`          | Show usage help                                  |
 | `--remove`        | Fully remove nodeinfo                            |
 | `-y/--yes`        | Install new notes and skip overwrite check       |
+| `--ssh`           | Open SSH config file for connecting to VMs       |
 
 ### Examples
 
@@ -124,6 +125,21 @@ This will:
 - `nodeinfo 202` → Inspect LXC 202  create the markdown file and place into the summary notes on the LXC
 - `nodeinfo 303` - Inspect VM/LXC 303 and skip prompt for override. (Will still promt if a VM for backup)
 
+---
+### 🔐 SSH Integration
+
+If a VM lacks QEMU Guest Agent support, `nodeinfo` can use SSH to extract system data.
+
+To configure:
+
+1. Add the VM's IP and optional port in `/etc/nodeinfo/ssh.conf`: 105=192.168.10.45:22
+```bash
+nodeinfo --ssh
+```
+2. Deploy the SSH key: Make sure the VM allows SSH key login and root access (or change the user accordingly).
+```bash
+ssh-copy-id -i /etc/nodeinfo/id_nodeinfo.pub root@<VMIP>
+```
 
 ---
 
