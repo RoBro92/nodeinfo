@@ -25,7 +25,10 @@ Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodein
 
 To update once installed run: - `nodeinfo update`
 
+---
+## 📘 Changelog
 
+See full changelog [here](./CHANGELOG.md)
 ---
 
 ## 🧑‍💻 Usage
