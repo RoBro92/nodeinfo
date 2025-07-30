@@ -116,6 +116,7 @@ This will:
 | `update`          | Check for latest version and download            |
 | `--help`          | Show usage help                                  |
 | `--remove`        | Fully remove nodeinfo                            |
+| `-y/--yes`        | Install new notes and skip overwrite check       |
 
 ### Examples
 
