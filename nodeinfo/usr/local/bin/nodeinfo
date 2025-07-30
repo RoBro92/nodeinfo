@@ -8,7 +8,7 @@ import re
 import requests
 import json
 
-VERSION = "1.0.6"
+VERSION = "1.0.7"
 GITHUB_REPO = "RoBro92/nodeinfo"
 SSH_CONFIG_FILE = "/etc/nodeinfo/ssh.conf"
 
@@ -544,8 +544,19 @@ def ensure_ssh_conf_exists():
 
     # Generate SSH key pair if it doesn't exist
     if not os.path.exists(key_path):
-        subprocess.run(["ssh-keygen", "-t", "rsa", "-b", "2048", "-f", key_path, "-N", ""], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        debug_print(f"Generated SSH keypair at {key_path}")
+        if is_debug_enabled():
+            print("🐞 Generating SSH keypair at /etc/nodeinfo/id_nodeinfo ...")
+            subprocess.run(
+                ["ssh-keygen", "-t", "rsa", "-b", "2048", "-f", key_path, "-N", ""]
+            )
+            debug_print(f"Generated SSH keypair at {key_path}")
+        else:
+            subprocess.run(
+                ["ssh-keygen", "-t", "rsa", "-b", "2048", "-f", key_path, "-N", ""],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            debug_print(f"Generated SSH keypair at {key_path}")
 
     # Create ssh.conf with instructions if it doesn't exist
     if not os.path.exists(SSH_CONFIG_FILE):
@@ -568,6 +579,75 @@ def ensure_ssh_conf_exists():
             debug_print("Creating default SSH config file at /etc/nodeinfo/ssh.conf")
         except Exception as e:
             debug_print(f"Failed to create SSH config: {e}")
+
+def print_debug(msg):
+    if is_debug_enabled():
+        print(f"🐞 {msg}")
+
+# Helper: Confirm prompt
+def confirm_prompt(prompt):
+    resp = input(f"{prompt} (y/N): ").strip().lower()
+    return resp == "y"
+
+# SSH-based info gathering functions
+def get_gateway_via_ssh(ssh_host):
+    try:
+        gw = subprocess.check_output(["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", f"root@{ssh_host}", "ip route show default"], stderr=subprocess.DEVNULL).decode()
+        gateway = gw.split()[2] if "default" in gw else "Unavailable"
+        ping = subprocess.check_output(["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", f"root@{ssh_host}", "ping -c 1 -w 1 " + gateway], stderr=subprocess.DEVNULL).decode()
+        reachable = "✅ Reachable" if ("1 received" in ping or "1 packets received" in ping) else "❌ Unreachable"
+        return gateway, reachable
+    except Exception:
+        return "Unavailable", None
+
+def get_dns_via_ssh(ssh_host):
+    try:
+        resolv = subprocess.check_output(["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", f"root@{ssh_host}", "cat /etc/resolv.conf"], stderr=subprocess.DEVNULL).decode()
+        dns_list = []
+        for line in resolv.splitlines():
+            if line.startswith("nameserver"):
+                dns_list.append(line.split()[1])
+        dns_servers = ", ".join(dns_list) if dns_list else "Unavailable"
+        test_dns = subprocess.check_output(["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", f"root@{ssh_host}", "getent hosts google.com"], stderr=subprocess.DEVNULL).decode()
+        dns_working = "✅ Resolving" if test_dns else "❌ Failed"
+        return dns_servers, dns_working
+    except Exception:
+        return "Unavailable", None
+
+def get_update_info_via_ssh(ssh_host):
+    try:
+        update_stamp = subprocess.check_output(["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", f"root@{ssh_host}", "stat -c %y /var/lib/apt/periodic/update-success-stamp"], stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        update_stamp = "Unavailable"
+    try:
+        upgradable = subprocess.check_output(["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", f"root@{ssh_host}", "apt list --upgradable"], stderr=subprocess.DEVNULL).decode()
+        upgrades = upgradable.splitlines()[1:]
+        if upgrades and any("upgradable" in line for line in upgrades):
+            upgrade_summary = f"{len(upgrades)} packages upgradable"
+        else:
+            upgrade_summary = "Up to date"
+    except Exception:
+        upgrade_summary = "Unavailable"
+    return update_stamp, upgrade_summary
+
+def get_os_info_via_ssh(ssh_host):
+    try:
+        output = subprocess.check_output(["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", f"root@{ssh_host}", "cat /etc/os-release"], stderr=subprocess.DEVNULL).decode()
+        for line in output.splitlines():
+            if line.startswith("PRETTY_NAME="):
+                return line.split("=", 1)[1].strip('"')
+    except Exception:
+        pass
+    return None
+
+# Remove SSH key function
+def remove_ssh_key(host):
+    key_path = "/root/.ssh/authorized_keys"
+    PRIVATE_KEY = "/etc/nodeinfo/id_nodeinfo"
+    remove_cmd = f"ssh -i {PRIVATE_KEY} -o StrictHostKeyChecking=no root@{host} \"sed -i '/nodeinfo/d' {key_path}\""
+    result = subprocess.run(remove_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode == 0:
+        print("🗑️ SSH key removed from VM successfully.")
 
 def main():
     # Ensure SSH config exists at startup
@@ -689,10 +769,82 @@ def main():
     ip, vlan = get_network_info(vmid, vmtype)
     gateway, dns_servers, gateway_status, dns_status = get_network_status(vmid, vmtype)
 
+    # --- SSH info block ---
+    ssh_host = None
+    ssh_port = None
+    # Try to extract SSH host from config if available
+    if os.path.exists(SSH_CONFIG_FILE):
+        try:
+            with open(SSH_CONFIG_FILE, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith(f"{vmid}="):
+                        ssh_target = line.split("=", 1)[1].strip()
+                        if ":" in ssh_target:
+                            ssh_host, ssh_port = ssh_target.split(":")
+                        else:
+                            ssh_host = ssh_target
+                            ssh_port = "22"
+                        break
+        except Exception:
+            pass
+    # After successful SSH connection and config parse, fetch updated system info via SSH
+    if ssh_host:
+        try:
+            # SSH connection test
+            ssh_test = subprocess.run(["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", f"root@{ssh_host}", "true"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if ssh_test.returncode == 0:
+                # Fetch SSH-based info
+                gateway_ssh, reachable_ssh = get_gateway_via_ssh(ssh_host)
+                dns_servers_ssh, dns_working_ssh = get_dns_via_ssh(ssh_host)
+                apt_last_update_ssh, package_status_ssh = get_update_info_via_ssh(ssh_host)
+                os_name_ssh = get_os_info_via_ssh(ssh_host)
+
+                print_debug(f"SSH-based OS info: {os_name_ssh}")
+                print_debug(f"SSH-based Gateway: {gateway_ssh}, Reachable: {reachable_ssh}")
+                print_debug(f"SSH-based DNS: {dns_servers_ssh}, Resolving: {dns_working_ssh}")
+                print_debug(f"SSH-based APT: Last update {apt_last_update_ssh}, Status: {package_status_ssh}")
+
+                # Update values for Markdown block using fetched SSH values
+                if os_name_ssh:
+                    os_name = os_name_ssh
+                if gateway_ssh:
+                    gateway = gateway_ssh
+                if reachable_ssh is not None:
+                    gateway_status = reachable_ssh
+                if dns_servers_ssh:
+                    dns_servers = dns_servers_ssh
+                if dns_working_ssh is not None:
+                    dns_status = dns_working_ssh
+                if apt_last_update_ssh:
+                    apt_last = apt_last_update_ssh
+                else:
+                    apt_last = None
+                if package_status_ssh:
+                    apt_status = package_status_ssh
+                else:
+                    apt_status = None
+            else:
+                apt_last = None
+                apt_status = None
+        except Exception as e:
+            print_debug(f"SSH info block exception: {e}")
+            apt_last = None
+            apt_status = None
+    else:
+        apt_last = None
+        apt_status = None
+
+    # Regenerate markdown with SSH-enhanced info if available
     markdown = generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan, gateway, dns_servers, gateway_status, dns_status)
     updated = update_notes(vmid, vmtype, markdown, auto_overwrite=auto_overwrite)
     if updated:
         print(f"✅ Notes updated for {vmtype.upper()} ID {vmid}")
+
+    # Prompt to remove SSH key after rewriting notes and confirming success
+    if updated and ssh_host:
+        if confirm_prompt("Do you want to remove the SSH key from the VM to prevent future access?"):
+            remove_ssh_key(ssh_host)
 
     # If VM is QEMU and SSH info is minimal, offer to attempt SSH config
     if vmtype == "qemu" and "- **SSH Access**: Unknown" in markdown:
@@ -742,7 +894,7 @@ def main():
                     print(f"❌ Failed to write to SSH config: {e}")
                     debug_print(f"Error writing SSH config: {e}")
 
-                # --- BEGIN PATCH: Automatically send key if entry present in SSH config ---
+                # --- PATCH: Prompt user before sending SSH key ---
                 # Check if entry exists in SSH config
                 ssh_target_line = ""
                 try:
@@ -755,17 +907,34 @@ def main():
                     debug_print(f"Error reading SSH config for key send: {e}")
 
                 if ssh_target_line:
-                    print(f"🔐 Sending SSH key to {ssh_target_line}...")
                     key_path = "/etc/nodeinfo/id_nodeinfo.pub"
-                    ssh_host = ssh_target_line.split(":")[0]
-                    result = subprocess.run(["ssh-copy-id", "-i", key_path, f"root@{ssh_host}"])
-                    if result.returncode == 0:
-                        print(f"✅ SSH key successfully copied to {ssh_host}")
-                    else:
-                        print(f"❌ Failed to copy SSH key to {ssh_host}")
-                # --- END PATCH ---
+                    ssh_host2 = ssh_target_line.split(":")[0]
+                    # Prompt before sending SSH key
+                    print("""🚨 SSH Key Authentication Setup
 
-                # Send SSH key with retries and connectivity check
+To enable secure, passwordless access for nodeinfo, we need to send the SSH public key to the VM.
+
+This process requires a one-time login using the root password of the VM.
+After this step, nodeinfo will use SSH keys instead of passwords for future access.
+
+You will now be prompted to enter the root password for the VM.
+""")
+                    proceed = input("Proceed with sending the SSH key? (y/N): ").lower()
+                    if proceed != "y":
+                        print("🔒 SSH key send cancelled. Proceeding without SSH enhancements.")
+                        return
+                    if is_debug_enabled():
+                        print(f"🐞 Sending SSH key to {ssh_host2} using ssh-copy-id...")
+                    print(f"🔐 Sending SSH key to {ssh_target_line}...")
+                    result = subprocess.run(["ssh-copy-id", "-i", key_path, f"root@{ssh_host2}"])
+                    if is_debug_enabled():
+                        print(f"🐞 ssh-copy-id to {ssh_host2} returned code {result.returncode}")
+                    if result.returncode == 0:
+                        print(f"✅ SSH key successfully copied to {ssh_host2}")
+                    else:
+                        print(f"❌ Failed to copy SSH key to {ssh_host2}")
+
+                # Send SSH key with retries and connectivity check (if not cancelled above)
                 key_path = "/etc/nodeinfo/id_nodeinfo.pub"
                 ssh_target = f"root@{ip}"
                 print(f"🔌 Testing SSH connection to {ssh_target} before sending key...")

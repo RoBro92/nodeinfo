@@ -60,13 +60,13 @@ See full changelog [here](./CHANGELOG.md)
 1. Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
 
 ```bash 
-wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v1.0.6.deb
+wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v1.0.7.deb
 ```
    
 2. Install the package:
 
 ```bash
-dpkg -i nodeinfo_v1.0.6.deb
+dpkg -i nodeinfo_v1.0.7.deb
 ```
 
 3. Once installed you can run:
