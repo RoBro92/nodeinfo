@@ -8,7 +8,7 @@ import re
 import requests
 import json
 
-VERSION = "1.0.8"
+VERSION = "1.1.0"
 GITHUB_REPO = "RoBro92/nodeinfo"
 SSH_CONFIG_FILE = "/etc/nodeinfo/ssh.conf"
 
@@ -86,11 +86,12 @@ def get_hostname(vmid, vmtype):
     if vmtype == "lxc":
         hostname = run_cmd(["pct", "exec", vmid, "--", "hostname"])
     else:
-        guest_hostname = run_cmd(["qm", "guest", "cmd", vmid, "get-host-name"])
-        if guest_hostname != "Unavailable":
-            hostname = guest_hostname.strip('"')
-        else:
-            hostname = f"vm-{vmid}"
+        output = run_cmd(["qm", "guest", "cmd", vmid, "get-host-name"])
+        try:
+            hostname_data = json.loads(output)
+            hostname = hostname_data.get("host-name", "Unknown")
+        except Exception:
+            hostname = output.strip() if output else "Unknown"
     debug_print(f"Hostname: {hostname}")
     return hostname
 
@@ -675,6 +676,30 @@ def remove_ssh_key_and_config(host, vmid):
         debug_print(f"SSH key removed from VM {host}, but config entry not found or not removed.")
     return key_removed, config_removed
 
+def get_guest_agent_hostname(vmid):
+    """Try to get hostname using QEMU Guest Agent."""
+    try:
+        output = run_cmd(["qm", "guest", "cmd", vmid, "get-host-name"])
+        if output and output != "Unavailable":
+            try:
+                data = json.loads(output)
+                return data.get("host-name")
+            except Exception:
+                return output.strip()
+    except Exception:
+        pass
+    return None
+
+def get_proxmox_vm_name(vmid):
+    try:
+        result = subprocess.run(["qm", "config", str(vmid)], capture_output=True, text=True)
+        for line in result.stdout.splitlines():
+            if line.startswith("name:"):
+                return line.split(":", 1)[1].strip()
+    except Exception as e:
+        debug_print(f"Failed to get Proxmox VM name: {e}")
+    return None
+
 def main():
     # Ensure SSH config exists at startup
     ensure_ssh_conf_exists()
@@ -798,7 +823,6 @@ def main():
     # --- SSH info block ---
     ssh_host = None
     ssh_port = None
-    # Try to extract SSH host from config if available
     if os.path.exists(SSH_CONFIG_FILE):
         try:
             with open(SSH_CONFIG_FILE, "r") as f:
@@ -814,13 +838,42 @@ def main():
                         break
         except Exception:
             pass
-    # After successful SSH connection and config parse, fetch updated system info via SSH
+
+    # If SSH access is configured, test connection and gather SSH-based info
     if ssh_host:
         try:
-            # SSH connection test
-            ssh_test = subprocess.run(["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", f"root@{ssh_host}", "true"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            ssh_test = subprocess.run(
+                ["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", f"root@{ssh_host}", "true"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
             if ssh_test.returncode == 0:
-                # Fetch SSH-based info
+                debug_print("SSH connection successful.")
+                # SSH-based Hostname override
+                def ssh_run_command(ssh_host, ssh_port, cmd):
+                    try:
+                        out = subprocess.check_output(
+                            ["ssh", "-i", "/etc/nodeinfo/id_nodeinfo", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3",
+                             "-p", str(ssh_port), f"root@{ssh_host}", cmd],
+                            stderr=subprocess.DEVNULL
+                        )
+                        return out.decode().strip()
+                    except Exception:
+                        return None
+                ssh_hostname = ssh_run_command(ssh_host, ssh_port, "hostname")
+                # --- Fallback hostname logic ---
+                # Fallback hostname logic
+                if ssh_hostname == "localhost" or not ssh_hostname:
+                    debug_print("Hostname from SSH is 'localhost' or unavailable — attempting fallback methods.")
+                    guest_agent_hostname = get_guest_agent_hostname(vmid)
+                    if guest_agent_hostname and guest_agent_hostname != "localhost":
+                        hostname = guest_agent_hostname
+                        debug_print(f"Using guest agent hostname: {hostname}")
+                    else:
+                        hostname = get_proxmox_vm_name(vmid) or f"vm-{vmid}"
+                        debug_print(f"Using VM name from Proxmox config or fallback: {hostname}")
+                else:
+                    hostname = ssh_hostname.strip()
+
                 gateway_ssh, reachable_ssh = get_gateway_via_ssh(ssh_host)
                 dns_servers_ssh, dns_working_ssh = get_dns_via_ssh(ssh_host)
                 apt_last_update_ssh, package_status_ssh = get_update_info_via_ssh(ssh_host)
@@ -831,7 +884,6 @@ def main():
                 print_debug(f"SSH-based DNS: {dns_servers_ssh}, Resolving: {dns_working_ssh}")
                 print_debug(f"SSH-based APT: Last update {apt_last_update_ssh}, Status: {package_status_ssh}")
 
-                # Update values for Markdown block using fetched SSH values
                 if os_name_ssh:
                     os_name = os_name_ssh
                 if gateway_ssh:
@@ -861,14 +913,20 @@ def main():
         apt_last = None
         apt_status = None
 
+    # Ensure hostname is a string for markdown
+    if not isinstance(hostname, str):
+        try:
+            hostname = str(hostname)
+        except Exception:
+            hostname = "Unknown"
+
     # Regenerate markdown with SSH-enhanced info if available
     markdown = generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan, gateway, dns_servers, gateway_status, dns_status)
     updated = update_notes(vmid, vmtype, markdown, auto_overwrite=auto_overwrite)
     if updated:
         print(f"✅ Notes updated for {vmtype.upper()} ID {vmid}")
 
-    # Ensure all post-processing (qm guest cmd, etc.) is complete before offering SSH key/config removal
-    # Prompt to remove SSH key and config entry after all SSH activity is finished
+    # SSH teardown (key removal) happens after all data collection and note generation is complete
     if updated and ssh_host:
         if confirm_prompt("Do you want to remove the SSH key from the VM and its config entry to prevent future access and reconnection?"):
             key_removed, config_removed = remove_ssh_key_and_config(ssh_host, vmid)
