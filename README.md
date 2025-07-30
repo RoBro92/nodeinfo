@@ -1,10 +1,9 @@
-<img width="1024" height="1024" alt="nodeinfo" src="https://github.com/user-attachments/assets/2d1f0f1f-85a3-4405-b45f-030bed94782e" />
+# 📟 nodeinfo
 
 **nodeinfo** is a lightweight CLI tool for inspecting and documenting Proxmox virtual machines (VMs) and LXC containers.  
 It outputs system details, update status, and network configuration, then writes a structured summary directly into the Notes field of the specified VM or container.
 
 ---
-
 
 ## ⚙️ Features
 
@@ -61,13 +60,13 @@ See full changelog [here](./CHANGELOG.md)
 1. Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
 
 ```bash 
-wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v1.0.1.deb
+wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v1.0.0.deb
 ```
    
 2. Install the package:
 
 ```bash
-dpkg -i nodeinfo_v1.0.1.deb
+dpkg -i nodeinfo_v1.0.0.deb
 ```
 
 3. Once installed you can run:
@@ -122,6 +121,7 @@ This will:
 
 - `nodeinfo 100` → Inspect VM 100, create the markdown file and place into the summary notes on the VM
 - `nodeinfo 202` → Inspect LXC 202  create the markdown file and place into the summary notes on the LXC
+- `nodeinfo 303` - Inspect VM/LXC 303 and skip prompt for override. (Will still promt if a VM for backup)
 
 
 ---

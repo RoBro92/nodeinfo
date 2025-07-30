@@ -304,7 +304,6 @@ def get_network_status(vmid, vmtype):
     return gateway, dns_servers, gateway_status, dns_status
 
 
-def update_notes(vmid, vmtype, markdown):
 def update_notes(vmid, vmtype, markdown, auto_overwrite=False):
     if vmtype == "lxc":
         config_path = f"/etc/pve/lxc/{vmid}.conf"
