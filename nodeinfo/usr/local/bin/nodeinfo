@@ -7,7 +7,7 @@ import os
 import re
 import requests
 
-VERSION = "0.2.9.5"
+VERSION = "0.2.9.6"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 if "--version" in sys.argv or "-v" in sys.argv:
@@ -154,7 +154,7 @@ def generate_ssh_info(vmid, vmtype):
         pass
 
     if not ssh_enabled:
-        return "- **SSH Access**: Disabled"
+        return "- **SSH Access**: 🔴 Disabled"
 
     try:
         config = run_cmd(["pct", "exec", vmid, "--", "cat", "/etc/ssh/sshd_config"])
@@ -190,7 +190,11 @@ def generate_ssh_info(vmid, vmtype):
     except Exception:
         pass
 
-    return f"""- **SSH Access**: Enabled
+    ssh_status = "🟢 Enabled"
+    if ssh_port == "Unavailable" and auth_method == "Unknown" and root_login == "Unknown":
+        ssh_status = "❌ Not Installed"
+
+    return f"""- **SSH Access**: {ssh_status}
 - **SSH Port**: {ssh_port}
 - **Auth Method**: {auth_method}
 - **Allow Root Login**: {root_login}"""
