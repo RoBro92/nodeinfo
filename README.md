@@ -27,7 +27,7 @@ It outputs system details, update status, and network configuration, then writes
 2. Install the package:
 
 ```bash
-sudo dpkg -i nodeinfo_v0.2.4.deb`
+sudo dpkg -i nodeinfo_v0.2.4.deb
 ```
 
 3. Once installed you can run:
