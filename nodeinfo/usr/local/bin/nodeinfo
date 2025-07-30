@@ -143,13 +143,21 @@ def generate_ssh_info(vmid, vmtype):
         return "- **SSH Access**: Unknown (non-LXC VM)"
 
     ssh_enabled = False
-    ssh_port = "22"
+    ssh_port = "Unavailable"
     auth_method = "Unknown"
     root_login = "Unknown"
 
     try:
         output = run_cmd(["pct", "exec", vmid, "--", "pgrep", "-x", "sshd"])
         ssh_enabled = bool(output)
+    except Exception:
+        pass
+
+    try:
+        ssh_port_output = run_cmd(["pct", "exec", vmid, "--", "ss", "-tulpn"])
+        match = re.search(r":(\d+)\s+.*sshd", ssh_port_output)
+        if match:
+            ssh_port = match.group(1)
     except Exception:
         pass
 
@@ -204,31 +212,29 @@ def get_os_update_info(vmid, vmtype):
     if vmtype != "lxc":
         return "OS version and update info not available for VMs"
 
-    try:
-        os_info = run_cmd(["pct", "exec", vmid, "--", "lsb_release", "-d"]).split(":", 1)[1].strip()
-    except Exception:
-        os_info = "Unavailable"
-
+    # Try both traditional and newer stamp files, fallback gracefully
     try:
         update_stamp = run_cmd(["pct", "exec", vmid, "--", "stat", "-c", "%y", "/var/lib/apt/periodic/update-success-stamp"])
     except Exception:
-        update_stamp = "Unknown"
+        try:
+            update_stamp = run_cmd(["pct", "exec", vmid, "--", "stat", "-c", "%y", "/var/lib/apt/periodic/update-success-stamp"])
+        except Exception:
+            update_stamp = "Unavailable"
 
     try:
         upgradable = run_cmd(["pct", "exec", vmid, "--", "apt", "list", "--upgradable"])
         upgrades = upgradable.splitlines()[1:]
-        if upgrades:
+        if upgrades and any("upgradable" in line for line in upgrades):
             upgrade_summary = f"{len(upgrades)} packages upgradable"
         else:
             upgrade_summary = "Up to date"
     except Exception:
         upgrade_summary = "Unavailable"
 
-    return f"""- **Base OS**: {os_info}
-- **Last apt update**: {update_stamp}
+    return f"""- **Last apt update**: {update_stamp}
 - **Package status**: {upgrade_summary}"""
 
-def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
+def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan, gateway, dns_servers, gateway_status, dns_status):
     markdown = f"""
 🖥️ **Container/VM Information**
 
@@ -236,6 +242,10 @@ def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
 - **Type**: {vmtype}
 - **Operating System**: {os_name}
 - **IP Address**: {ip}
+- **Gateway**: {gateway}
+- **DNS Servers**: {dns_servers}
+- **Gateway Reachable**: {gateway_status}
+- **DNS Resolving**: {dns_status}
 - **VLAN/Subnet**: {vlan} – {vlan_to_name(vlan)}
 
 🔒 **Access & Credentials**
@@ -243,7 +253,7 @@ def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
 - **Web UI URL**: http://{ip}
 {generate_ssh_info(vmid, vmtype)}
 
-🔄 **Update Process**
+🔄 **Update Status**
 
 {get_os_update_info(vmid, vmtype)}
 """
@@ -252,6 +262,36 @@ def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
     markdown = re.sub(r'(?<!\n)🖥️', r'\n🖥️', markdown)
 
     return markdown
+def get_network_status(vmid, vmtype):
+    gateway = "Unavailable"
+    dns_servers = "Unavailable"
+    gateway_status = "❌ Unreachable"
+    dns_status = "❌ Failed"
+
+    if vmtype == "lxc":
+        try:
+            gateway = run_cmd(["pct", "exec", vmid, "--", "ip", "route", "show", "default"]).split()[2]
+            gateway_status_check = run_cmd(["pct", "exec", vmid, "--", "ping", "-c", "1", "-w", "1", gateway])
+            if "1 received" in gateway_status_check:
+                gateway_status = "✅ Reachable"
+        except Exception:
+            pass
+
+        try:
+            resolv_conf = run_cmd(["pct", "exec", vmid, "--", "cat", "/etc/resolv.conf"])
+            dns_list = []
+            for line in resolv_conf.splitlines():
+                if line.startswith("nameserver"):
+                    dns_list.append(line.split()[1])
+            if dns_list:
+                dns_servers = ", ".join(dns_list)
+                test_dns = run_cmd(["pct", "exec", vmid, "--", "getent", "hosts", "google.com"])
+                if test_dns:
+                    dns_status = "✅ Resolving"
+        except Exception:
+            pass
+
+    return gateway, dns_servers, gateway_status, dns_status
 
 
 def update_notes(vmid, vmtype, markdown):
@@ -423,8 +463,9 @@ def main():
     hostname = get_hostname(vmid, vmtype)
     os_name = get_os(vmid, vmtype)
     ip, vlan = get_network_info(vmid, vmtype)
+    gateway, dns_servers, gateway_status, dns_status = get_network_status(vmid, vmtype)
 
-    markdown = generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan)
+    markdown = generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan, gateway, dns_servers, gateway_status, dns_status)
     updated = update_notes(vmid, vmtype, markdown)
     if updated:
         print(f"✅ Notes updated for {vmtype.upper()} ID {vmid}")
