@@ -15,7 +15,14 @@ It outputs system details, update status, and network configuration, then writes
 - 🚀 GitHub Actions auto-build `.deb` releases  
 
 ---
+## 💡 Feature Requests & Support
 
+Have an idea or need help? Feel free to open an issue or start a discussion on [GitHub Issues](https://github.com/RoBro92/nodeinfo/issues). I'm actively improving `nodeinfo` and welcome your suggestions!
+---
+## 📘 Changelog
+
+See full changelog [here](./CHANGELOG.md)
+---
 ## 🚀 Installation
 
 1. Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
@@ -87,13 +94,7 @@ This will:
 
 
 ---
-## 📘 Changelog
 
-See full changelog [here](./CHANGELOG.md)
-
-## 💡 Feature Requests & Support
-
-Have an idea or need help? Feel free to open an issue or start a discussion on [GitHub Issues](https://github.com/RoBro92/nodeinfo/issues). I'm actively improving `nodeinfo` and welcome your suggestions!
 
 ## 🛣️ Roadmap
 
