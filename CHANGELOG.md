@@ -5,6 +5,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.7] - 2025-07-30
+### Added
+- Refined SSH scraping
+- Prompt when running if the notes file already contains data
+- check if notes was previously populated by nodeinfo that it will not replace user notes 
+
 ## [0.2.5] - 2025-07-30
 ### Added
 - Updated `update` to check for new version, confirm if user wishes to download.
