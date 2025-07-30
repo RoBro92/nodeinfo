@@ -11,7 +11,7 @@ It outputs system details, update status, and network configuration, then writes
 - 📝 Updates the Notes field with a formatted summary  
 - 🌐 Captures IP, VLAN, SSH, and web UI ports  
 - 📦 Installable `.deb` package for quick deployment  
-- 🧱 Works across Proxmox clusters  
+- 🧱 Works across Proxmox clusters  TBC
 - 🚀 GitHub Actions auto-build `.deb` releases  
 
 ---
