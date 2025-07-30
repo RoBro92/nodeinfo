@@ -44,10 +44,14 @@ echo "✅ nodeinfo installed successfully."
 
 if [ ! -s "$CONFIG_FILE" ] || grep -q '^#' "$CONFIG_FILE"; then
     echo "⚠️  No VLAN names are currently configured."
-    echo -n "Would you like to edit your VLAN names now? (y/n): "
-    read answer
-    if [ "$answer" = "y" ]; then
-        ${EDITOR:-nano} "$CONFIG_FILE"
+    if [ -t 0 ]; then
+        echo -n "Would you like to edit your VLAN names now? (y/n): "
+        read answer
+        if [ "$answer" = "y" ]; then
+            ${EDITOR:-nano} "$CONFIG_FILE"
+        else
+            echo "ℹ️  You can configure VLAN names later by running: nodeinfo --vlan"
+        fi
     else
         echo "ℹ️  You can configure VLAN names later by running: nodeinfo --vlan"
     fi
@@ -55,4 +59,7 @@ else
     echo "✅ VLAN config already exists at $CONFIG_FILE"
 fi
 
+echo ""
+echo "Thank you for installing nodeinfo!"
+echo "Run 'nodeinfo --help' to see available commands."
 exit 0
