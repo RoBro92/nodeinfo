@@ -6,6 +6,12 @@ import datetime
 import os
 import re
 
+VERSION = "0.1.1"
+
+if "--version" in sys.argv or "-v" in sys.argv:
+    print(f"nodeinfo version {VERSION}")
+    sys.exit(0)
+
 def run_cmd(cmd):
     try:
         return subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode().strip()

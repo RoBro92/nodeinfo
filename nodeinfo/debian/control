@@ -1,8 +1,8 @@
 Package: nodeinfo
-Version: 1.1
+Version: 0.1.1
 Section: admin
 Priority: optional
 Architecture: all
 Depends: python3
-Maintainer: Robin Brown <you@example.com>
+Maintainer: Robin Brown admin@stonewallmedia.co.uk
 Description: CLI tool to inspect Proxmox VMs/CTs and update Notes
