@@ -16,12 +16,14 @@ It outputs system details, update status, and network configuration, then writes
 
 ---
 
-## 🚀 Installation
+## 🚀 Installation & Update
 
 Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
 
 1. `wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.1.25.deb`
 2. `sudo dpkg -i nodeinfo_v0.1.25.deb`
+
+Until the `nodeinfo update` command is available, simply reinstall the latest `.deb` to update:
 
 ---
 
@@ -43,15 +45,6 @@ Run the command from a Proxmox host shell as root:
 - `nodeinfo --help` – Display help message  
 - `nodeinfo --version` – Show current version  
 - `nodeinfo update` – *(coming soon)* Check for updates  
-
----
-
-## 🔄 Updating
-
-Until the `nodeinfo update` command is available, simply reinstall the latest `.deb` to update:
-
-1. `wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.1.25.deb`  
-2. `sudo dpkg -i nodeinfo_v0.1.25.deb`
 
 ---
 
