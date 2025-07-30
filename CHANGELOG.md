@@ -5,26 +5,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 ## [1.1.0] - 2025-07-30
-### Added
-- Major Features:
-	•	🔐 SSH Support for VMs
-	•	You can now securely connect to most Linux-based VMs using SSH key-based authentication.
-	•	Keys are generated silently (unless in debug mode) and auto-pushed with user approval.
-	•	SSH-based data collection improves notes accuracy for VMs lacking QEMU Guest Agent.
-	•	Optional removal of SSH key & config after use for added security and transparency.
-	•	🖥️ Improved VM Support
-	•	Substantially better information gathering for QEMU VMs via SSH when QEMU Guest Agent is limited or absent.
-	•	Automatic fallback to container name if hostname is reported as localhost.
+### 🚀 Added
 
-- Enhancements:
-	•	🧠 Smart detection and prompting to enable SSH if it’s not available in the guest.
-	•	🗂️ ssh.conf is now populated and managed automatically when using nodeinfo <vmid>.
-	•	🔄 Retry and fallback logic added for more reliable SSH operations.
-	•	🔍 Debug logging extended to show all SSH-related actions and decisions.
+#### Major Features
+- **🔐 SSH Support for VMs**  
+  - Securely connect to most Linux-based VMs using SSH key-based authentication.  
+  - Keys are generated silently (unless in debug mode) and auto-pushed with user approval.  
+  - SSH-based data collection improves accuracy for VMs lacking QEMU Guest Agent.  
+  - Optional removal of SSH key and config after use for added security and transparency.
 
-### Fixes
-	•	✅ Improved cleanup of SSH keys and config entries after note updates.
-	•	🧹 Minor bugfixes in update-checker and VLAN config handling.
+- **🖥️ Improved VM Support**  
+  - Substantially better information gathering for QEMU VMs via SSH.  
+  - Automatic fallback to container name if hostname is reported as `localhost`.
+
+#### Enhancements
+- **🧠 Smart SSH Detection**: Prompts to install SSH server if unavailable inside the VM.  
+- **📁 `ssh.conf` Auto-Management**: Automatically populated during nodeinfo runs.  
+- **🔄 Retry & Fallback Logic**: More robust SSH handling and logging.  
+- **🔍 Debug Prints**: Expanded logging for SSH operations and troubleshooting.
+
+---
+
+### 🛠️ Fixes
+
+- ✅ Improved cleanup of SSH keys and config entries after note updates.  
+- 🐞 Minor bugfixes in update-checker and VLAN config handling.
 
 ## [1.0.1] - 2025-07-30
 ### Added
