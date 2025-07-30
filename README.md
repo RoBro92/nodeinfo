@@ -21,13 +21,13 @@ It outputs system details, update status, and network configuration, then writes
 1. Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
 
 ```bash 
-   wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.2.3.deb
+   wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.2.4.deb
    ```
    
 2. Install the package:
 
 ```bash
-sudo dpkg -i nodeinfo_v0.2.3.deb`
+sudo dpkg -i nodeinfo_v0.2.4.deb`
 ```
 
 3. Once installed you can run:
@@ -47,7 +47,7 @@ nodeinfo --help`
 4. After install, you can configure friendly VLAN names, you will be prompted to do this after install and can edit this file easily:
 
 ```bash
-nodeinfo --vlan`
+nodeinfo --vlan
 ```
 
 This opens /etc/nodeinfo/vlan.conf where you can map VLAN tags to descriptions (e.g, 10=Hypervisors)
@@ -57,7 +57,7 @@ This opens /etc/nodeinfo/vlan.conf where you can map VLAN tags to descriptions (
 To remove nodeinfo completely you can run:
 
 ```bash
-nodeinfo --remove`
+nodeinfo --remove
 ```
 
 This will:

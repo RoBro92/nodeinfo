@@ -5,6 +5,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.4] - 2025-07-30
+### Added
+- Updated `--update` to check for new version, confirm if user wishes to download.
+  
+    1.	Checks for latest version from GitHub Releases.
+	2.	Compares with the current version (VERSION constant).
+	3.	Asks the user for confirmation before proceeding.
+	4.	Downloads the .deb file into /tmp.
+	5.	Backs up /etc/nodeinfo/vlan.conf only if it exists and is non-empty.
+	6.	Installs the new .deb using dpkg -i.
+	7.	Restores the backup of vlan.conf if it was backed up.
+	8.	Handles errors gracefully and provides clear output.
+
 ## [0.2.3] - 2025-07-30
 ### Added
 - Supports `--remove` to fully remove package and components.

@@ -6,7 +6,7 @@ import datetime
 import os
 import re
 
-VERSION = "0.2.3"
+VERSION = "0.2.4"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 
@@ -193,13 +193,44 @@ def do_self_update():
             raise Exception("GitHub API error")
         latest = response.json()["tag_name"].lstrip("v")
 
-        if latest != VERSION:
-            print(f"📦 New version available: {latest} (current: {VERSION})")
-            print("🔗 Download: https://github.com/{}/releases/latest/download/nodeinfo_v{}.deb".format(GITHUB_REPO, latest))
-        else:
+        if latest == VERSION:
             print(f"✅ You are on the latest version ({VERSION})")
+            return
+
+        print(f"📦 New version available: {latest} (current: {VERSION})")
+        confirm = input("Do you want to download and install it now? [y/N] ").strip().lower()
+        if confirm != "y":
+            print("❌ Update cancelled.")
+            return
+
+        url = f"https://github.com/{GITHUB_REPO}/releases/latest/download/nodeinfo_v{latest}.deb"
+        deb_file = f"/tmp/nodeinfo_v{latest}.deb"
+
+        print(f"⬇️  Downloading {url}...")
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            with open(deb_file, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+        vlan_path = "/etc/nodeinfo/vlan.conf"
+        backup = "/tmp/vlan.conf.bak"
+
+        if os.path.exists(vlan_path) and os.path.getsize(vlan_path) > 0:
+            print("💾 Backing up existing VLAN config...")
+            subprocess.run(["cp", vlan_path, backup])
+
+        print("📦 Installing new version...")
+        subprocess.run(["dpkg", "-i", deb_file])
+
+        if os.path.exists(backup):
+            print("🔁 Restoring VLAN config...")
+            subprocess.run(["cp", backup, vlan_path])
+            os.remove(backup)
+
+        print(f"✅ nodeinfo updated to version {latest}")
     except Exception as e:
-        print(f"❌ Failed to check for updates: {e}")
+        print(f"❌ Failed to update: {e}")
 
 
 def main():
