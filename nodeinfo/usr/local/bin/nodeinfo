@@ -6,7 +6,7 @@ import datetime
 import os
 import re
 
-VERSION = "0.2.2"
+VERSION = "0.2.3"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 
@@ -204,19 +204,19 @@ def do_self_update():
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: nodeinfo <vmid> | --version | update | --vlan")
+        print("Usage: nodeinfo <vmid> | --version | update | --vlan | --remove")
         sys.exit(1)
 
     if sys.argv[1] in ("--version", "-v"):
         print_version()
         return
 
-    if sys.argv[1] == "update":
-        do_self_update()
-        return
-    
     if sys.argv[1] in ("--help", "-h"):
         print_help()
+        return
+
+    if sys.argv[1] == "update":
+        do_self_update()
         return
 
     if sys.argv[1] == "--vlan":
@@ -228,6 +228,31 @@ def main():
             print(f"❌ Failed to open VLAN config: {e}")
         return
 
+    if sys.argv[1] == "--remove":
+        confirm = input("⚠️  This will completely uninstall nodeinfo and remove all its files. Continue? (y/n): ").lower()
+        if confirm != 'y':
+            print("❌ Removal cancelled.")
+            return
+
+        paths_to_remove = [
+            "/usr/local/bin/nodeinfo",
+            "/etc/nodeinfo",
+            "/usr/local/share/nodeinfo"
+        ]
+
+        for path in paths_to_remove:
+            if os.path.isfile(path):
+                os.remove(path)
+                print(f"🗑️ Removed file: {path}")
+            elif os.path.isdir(path):
+                import shutil
+                shutil.rmtree(path)
+                print(f"🗑️ Removed directory: {path}")
+
+        print("✅ nodeinfo successfully removed.")
+        return
+
+    # Default behavior: handle VM/CT update
     vmid = sys.argv[1]
     vmtype = get_vm_type(vmid)
     hostname = get_hostname(vmid, vmtype)

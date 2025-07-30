@@ -5,6 +5,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.3] - 2025-07-30
+### Added
+- Supports `--remove` to fully remove package and components.
+
 ## [0.2.2] - 2025-07-30
 ### Fixed
 - template for vlans

@@ -20,8 +20,41 @@ It outputs system details, update status, and network configuration, then writes
 
 Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
 
-1. `wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.2.2.deb`
-2. `sudo dpkg -i nodeinfo_v0.2.2.deb`
+1. `wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.2.3.deb`
+   
+Install the package:
+
+2. `sudo dpkg -i nodeinfo_v0.2.3.deb`
+
+Once installed you can run:
+
+3. `nodeinfo --help`
+
+🛡️ Trusted Source
+
+	•	This package is built and signed by the official GitHub repo.
+	•	All releases are published through GitHub Actions from source.
+	•	No external shell scripts or hidden install logic — you control every step.
+
+## 🔧 Optional: Configure VLAN Names
+
+After install, you can configure friendly VLAN names, you will be prompted to do this after install and can edit this file easily:
+
+4. `nodeinfo --vlan`
+
+This opens /etc/nodeinfo/vlan.conf where you can map VLAN tags to descriptions (e.g, 10=Hypervisors)
+
+## ❌ Uninstall
+
+To remove nodeinfo completely you can run:
+
+  `nodeinfo --remove`
+
+This will:
+
+- Remove the binary and config files
+- clean up /etc/nodeinfo
+- Prompt before deletion
 
 ---
 
@@ -38,8 +71,8 @@ Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodein
 
 ### Examples
 
-- `nodeinfo 100` → Inspect VM 100  
-- `nodeinfo 202` → Inspect LXC 202  
+- `nodeinfo 100` → Inspect VM 100, create the markdown file and place into the summary notes on the VM
+- `nodeinfo 202` → Inspect LXC 202  create the markdown file and place into the summary notes on the LXC
 
 
 ---
@@ -55,8 +88,10 @@ Key files and folders used for development and packaging:
 - `.github/workflows/` – GitHub Actions for building and releasing `.deb` packages  
 - `Makefile` – Automates versioning, building, and release  
 - `nodeinfo/` – Debian packaging directory:
-  - `debian/control` – Metadata (version is auto-pulled from `nodeinfo.py`)  
+  - `DEBIAN/control` – Metadata (version is auto-pulled from `nodeinfo.py`)  
+  - `DEBIAN/postinst` - Post install script that creates the necessary vlan.conf files and intiiates invite to update VLAN's
   - `usr/local/bin/nodeinfo` – Main installed CLI executable  
+  - `usr/local/bin/share/nodeinfo/template.md` - This file is not in use currently but will be the location for the note template so it can be updated and versioned seperately. 
 
 > 💡 Only `usr/local/bin/nodeinfo` is included in the installed package. All other files support development.
 
