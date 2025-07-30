@@ -22,17 +22,6 @@ A document to track the progress, updates, and future plans for the `nodeinfo` t
 
 ---
 
-## 🔧 Currently Working On
-
-_Work in progress features and experiments_
-
-- [ ] Refactoring output spacing and formatting in markdown
-- [ ] Add centralized update deployment across PVE cluster
-- [ ] Improve accuracy of DNS/gateway reachability checks
-
-
----
-
 ## 📌 Planned Features
 
 - 🧠 Intelligent update checker for Debian base + kernel version
