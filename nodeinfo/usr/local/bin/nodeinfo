@@ -7,7 +7,7 @@ import os
 import re
 import requests
 
-VERSION = "0.2.9.3"
+VERSION = "0.2.9.5"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 if "--version" in sys.argv or "-v" in sys.argv:
@@ -260,58 +260,56 @@ def update_notes(vmid, vmtype, markdown):
             print(f"❌ Failed to read config file for preservation: {e}")
             return False
 
-        nodeinfo_start = "# === nodeinfo start ==="
-        nodeinfo_end = "# === nodeinfo end ==="
-
-        existing_nodeinfo_block_match = re.search(r"(?ms)# === nodeinfo start ===\n(.*?)# === nodeinfo end ===\n?", content)
-
-        content_without_nodeinfo = content
-        if existing_nodeinfo_block_match:
-            content_without_nodeinfo = content[:existing_nodeinfo_block_match.start()] + content[existing_nodeinfo_block_match.end():]
-        content_without_nodeinfo = content_without_nodeinfo.strip()
-
-        new_block_lines = ["# === nodeinfo start ==="]
-        for line in markdown.strip().splitlines():
-            new_block_lines.append(f"# {line}")
-        new_block_lines.append("# === nodeinfo end ===")
-        new_block = "\n".join(new_block_lines)
-
-        if existing_nodeinfo_block_match and existing_nodeinfo_block_match.group(0).strip() == new_block.strip():
-            print("ℹ️ Notes already up to date. No changes made.")
-            return True
-
-        if not existing_nodeinfo_block_match and content_without_nodeinfo:
-            confirm = input("⚠️ Notes already contain existing content. Overwrite with nodeinfo block? (y/N): ").strip().lower()
+        # Check if any comment lines exist
+        lines = content.splitlines()
+        comment_lines = [line for line in lines if line.strip().startswith("#")]
+        if comment_lines:
+            confirm = input("⚠️ Commented notes already exist in this config file. Overwrite with nodeinfo block? (y/N): ").strip().lower()
             if confirm != "y":
                 print("❌ Update cancelled.")
                 return False
+
+            # Remove all comment lines
+            cleaned_lines = [line for line in lines if not line.strip().startswith("#")]
+
+            # Prepare new block with each line prepended by '# '
+            new_block_lines = []
+            for line in markdown.strip().splitlines():
+                new_block_lines.append(f"# {line}")
+
+            new_content = "\n".join(cleaned_lines).rstrip()
+            if new_content:
+                new_content += "\n"
+            new_content += "\n".join(new_block_lines) + "\n"
+
             try:
-                new_lines = []
-                for line in content.splitlines():
-                    if not line.strip().startswith("#"):
-                        new_lines.append(line)
-                new_lines.append(new_block)
                 with open(config_path, "w") as f:
-                    f.write("\n".join(new_lines) + "\n")
+                    f.write(new_content)
                 print(f"✅ Notes overwritten with nodeinfo block in {config_path}")
                 return True
             except Exception as e:
                 print(f"❌ Failed to write updated notes: {e}")
                 return False
 
-        if existing_nodeinfo_block_match:
-            new_content = content[: existing_nodeinfo_block_match.start()] + new_block + content[existing_nodeinfo_block_match.end() :]
         else:
-            new_content = content + "\n" + new_block
+            # No existing non-comment content, just append the new block with '# ' prefix
+            new_block_lines = []
+            for line in markdown.strip().splitlines():
+                new_block_lines.append(f"# {line}")
 
-        try:
-            with open(config_path, "w") as f:
-                f.write(new_content)
-            print(f"✅ Notes written to {config_path}")
-            return True
-        except Exception as e:
-            print(f"❌ Failed to write updated notes: {e}")
-            return False
+            new_content = content.rstrip()
+            if new_content:
+                new_content += "\n"
+            new_content += "\n".join(new_block_lines) + "\n"
+
+            try:
+                with open(config_path, "w") as f:
+                    f.write(new_content)
+                print(f"✅ Notes written to {config_path}")
+                return True
+            except Exception as e:
+                print(f"❌ Failed to write updated notes: {e}")
+                return False
 
     subprocess.run(["qm", "set", vmid, "--notes", markdown])
     print(f"✅ Notes updated for {vmtype.upper()} ID {vmid}")
