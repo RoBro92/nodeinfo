@@ -41,14 +41,6 @@ Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodein
 - `nodeinfo 100` → Inspect VM 100  
 - `nodeinfo 202` → Inspect LXC 202  
 
----
-
-## 🧹 Additional Commands
-
-- `nodeinfo --help` – Display help message  
-- `nodeinfo --version` – Show current version  
-- `nodeinfo update` – Check for updates  
-
 
 ---
 ## 📘 Changelog
