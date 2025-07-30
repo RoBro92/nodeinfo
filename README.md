@@ -38,9 +38,9 @@ nodeinfo --help`
 
 🛡️ Trusted Source
 
-•	This package is built and signed by the official GitHub repo.
-•	All releases are published through GitHub Actions from source.
-•	No external shell scripts or hidden install logic — you control every step.
+- This package is built and signed by the official GitHub repo.
+- All releases are published through GitHub Actions from source.
+- No external shell scripts or hidden install logic — you control every step.
 
 ## 🔧 Optional: Configure VLAN Names
 
