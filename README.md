@@ -131,6 +131,7 @@ This will:
 📅 See the full [ROADMAP.md](./ROADMAP.md) for upcoming plans.
 
 ### 🔄 In Progress / Planned
+- 🔧 Add argument when generating for what is included in the container to correctly update port for web ui.
 - 🔧 Scheduled Runs via Cron
 - 🔧 Cluster support to enable running and install on a single node
 - 📌 Persist `User Notes` section across runs
