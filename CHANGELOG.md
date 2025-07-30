@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.2.4] - 2025-07-30
 ### Added
-- Updated `--update` to check for new version, confirm if user wishes to download.
+- Updated `update` to check for new version, confirm if user wishes to download.
   
     1.	Checks for latest version from GitHub Releases.
 	2.	Compares with the current version (VERSION constant).
