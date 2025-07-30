@@ -7,7 +7,7 @@ import os
 import re
 import requests
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 DEBUG_FLAG_FILE = "/tmp/nodeinfo_debug"
@@ -32,15 +32,17 @@ def print_help():
     print(f"""Usage: nodeinfo <vmid> [options]
 
 Options:
-  --version.        Show current nodeinfo version
+  --version, -v     Show current nodeinfo version
   --vlan            Open VLAN name config file for editing
   update            Check for latest version and display download link
   --help.           Show this help message
   --debug           Enable debug mode (creates {DEBUG_FLAG_FILE} file)
   --remove          Uninstall nodeinfo and remove all files
-
+  --yes, -y         Automatically overwrite existing notes without confirmation (still prompts for backup)
+  
 Examples:
   nodeinfo 101             # Inspect VM/LXC with ID 101
+  nodeinfo 101 -y          # Inspect VM/LXC with ID 101 and auto-overwrite notes
   nodeinfo --vlan          # Edit VLAN name mappings
   nodeinfo update          # Check if a new version is available
   nodeinfo --version       # Show version number
@@ -303,6 +305,7 @@ def get_network_status(vmid, vmtype):
 
 
 def update_notes(vmid, vmtype, markdown):
+def update_notes(vmid, vmtype, markdown, auto_overwrite=False):
     if vmtype == "lxc":
         config_path = f"/etc/pve/lxc/{vmid}.conf"
         debug_print("Writing notes to config file...")
@@ -314,65 +317,85 @@ def update_notes(vmid, vmtype, markdown):
             print(f"❌ Failed to read config file for preservation: {e}")
             return False
 
-
         lines = content.splitlines()
         comment_lines = [line for line in lines if line.strip().startswith("#")]
-        if comment_lines:
+        if comment_lines and not auto_overwrite:
             confirm = input("⚠️ Commented notes already exist in this config file. Overwrite with nodeinfo block? (y/N): ").strip().lower()
             if confirm != "y":
                 print("❌ Update cancelled.")
                 return False
 
-
-            cleaned_lines = [line for line in lines if not line.strip().startswith("#")]
-
-
-            new_block_lines = []
-            for line in markdown.strip().splitlines():
-                new_block_lines.append(f"# {line}")
-
-            new_content = "\n".join(cleaned_lines).rstrip()
-            if new_content:
-                new_content += "\n"
-            new_content += "\n".join(new_block_lines) + "\n"
-
-            try:
-                with open(config_path, "w") as f:
-                    f.write(new_content)
-                debug_print("Notes successfully written.")
+        cleaned_lines = [line for line in lines if not line.strip().startswith("#")] if comment_lines else lines
+        new_block_lines = []
+        for line in markdown.strip().splitlines():
+            new_block_lines.append(f"# {line}")
+        new_content = "\n".join(cleaned_lines).rstrip()
+        if new_content:
+            new_content += "\n"
+        new_content += "\n".join(new_block_lines) + "\n"
+        try:
+            with open(config_path, "w") as f:
+                f.write(new_content)
+            debug_print("Notes successfully written.")
+            if comment_lines:
                 print(f"✅ Notes overwritten with nodeinfo block in {config_path}")
-                return True
-            except Exception as e:
-                debug_print(f"Failed to write notes: {e}")
-                print(f"❌ Failed to write updated notes: {e}")
-                return False
-
-        else:
-            new_block_lines = []
-            for line in markdown.strip().splitlines():
-                new_block_lines.append(f"# {line}")
-
-            new_content = content.rstrip()
-            if new_content:
-                new_content += "\n"
-            new_content += "\n".join(new_block_lines) + "\n"
-
-            try:
-                with open(config_path, "w") as f:
-                    f.write(new_content)
-                debug_print("Notes successfully written.")
+            else:
                 print(f"✅ Notes written to {config_path}")
-                return True
+            return True
+        except Exception as e:
+            debug_print(f"Failed to write notes: {e}")
+            print(f"❌ Failed to write updated notes: {e}")
+            return False
+    else:
+        config_path = f"/etc/pve/qemu-server/{vmid}.conf"
+        try:
+            with open(config_path, "r") as f:
+                content = f.read()
+        except Exception as e:
+            debug_print(f"Failed to read VM config: {e}")
+            print(f"❌ Failed to read VM config file: {e}")
+            return False
+
+        confirm = input("⚠️ Do you want to back up the original VM config file before modifying? (y/N): ").strip().lower()
+        if confirm == "y":
+            backup_path = f"{config_path}.bak"
+            try:
+                with open(backup_path, "w") as backup_file:
+                    backup_file.write(content)
+                print(f"💾 Backup saved to {backup_path}")
             except Exception as e:
-                debug_print(f"Failed to write notes: {e}")
-                print(f"❌ Failed to write updated notes: {e}")
+                debug_print(f"Backup failed: {e}")
+                print(f"❌ Failed to write backup file: {e}")
                 return False
 
-    debug_print("Writing notes to VM notes field...")
-    subprocess.run(["qm", "set", vmid, "--notes", markdown])
-    debug_print("Notes successfully written.")
-    print(f"✅ Notes updated for {vmtype.upper()} ID {vmid}")
-    return True
+        lines = content.splitlines()
+        comment_lines = [line for line in lines if line.strip().startswith("#")]
+        if comment_lines and not auto_overwrite:
+            confirm = input("⚠️ Commented notes already exist in this VM config file. Overwrite with nodeinfo block? (y/N): ").strip().lower()
+            if confirm != "y":
+                print("❌ Update cancelled.")
+                return False
+        cleaned_lines = [line for line in lines if not line.strip().startswith("#")] if comment_lines else lines
+        new_block_lines = []
+        for line in markdown.strip().splitlines():
+            new_block_lines.append(f"# {line}")
+        new_content = "\n".join(cleaned_lines).rstrip()
+        if new_content:
+            new_content += "\n"
+        new_content += "\n".join(new_block_lines) + "\n"
+        try:
+            with open(config_path, "w") as f:
+                f.write(new_content)
+            debug_print("Notes successfully written to VM config file.")
+            if comment_lines:
+                print(f"✅ Notes overwritten with nodeinfo block in {config_path}")
+            else:
+                print(f"✅ Notes written to {config_path}")
+            return True
+        except Exception as e:
+            debug_print(f"Failed to write notes to VM config: {e}")
+            print(f"❌ Failed to write updated notes to VM config: {e}")
+            return False
 
 def do_self_update():
 
@@ -483,6 +506,11 @@ def main():
         print("✅ nodeinfo successfully removed.")
         return
 
+    # Argument parsing for -y/--yes flag
+    auto_overwrite = False
+    if "-y" in sys.argv or "--yes" in sys.argv:
+        auto_overwrite = True
+
     vmid = sys.argv[1]
     vmtype = get_vm_type(vmid)
     hostname = get_hostname(vmid, vmtype)
@@ -491,7 +519,7 @@ def main():
     gateway, dns_servers, gateway_status, dns_status = get_network_status(vmid, vmtype)
 
     markdown = generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan, gateway, dns_servers, gateway_status, dns_status)
-    updated = update_notes(vmid, vmtype, markdown)
+    updated = update_notes(vmid, vmtype, markdown, auto_overwrite=auto_overwrite)
     if updated:
         print(f"✅ Notes updated for {vmtype.upper()} ID {vmid}")
 
