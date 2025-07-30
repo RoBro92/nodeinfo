@@ -6,17 +6,36 @@ import datetime
 import os
 import re
 
-VERSION = "0.2.5"
+VERSION = "0.2.6"
 GITHUB_REPO = "RoBro92/nodeinfo"
+
+if "--version" in sys.argv or "-v" in sys.argv:
+    print(f"nodeinfo version {VERSION}")
+    sys.exit(0)
+
+if "--help" in sys.argv or "-h" in sys.argv:
+    def print_help():
+        print(f"""Usage: nodeinfo <vmid> [options]
+
+Options:
+  --version, -v     Show current nodeinfo version
+  --vlan            Open VLAN name config file for editing
+  update            Check for latest version and display download link
+  --help, -h        Show this help message
+
+Examples:
+  nodeinfo 101             # Inspect VM/LXC with ID 101
+  nodeinfo --vlan          # Edit VLAN name mappings
+  nodeinfo update          # Check if a new version is available
+  nodeinfo --version       # Show version number
+""")
+        sys.exit(0)
+    print_help()
 
 
 def print_version():
     print(f"nodeinfo version {VERSION}")
     sys.exit(0)
-
-
-if "--version" in sys.argv or "-v" in sys.argv:
-    print_version()
 
 
 def print_help():
@@ -36,10 +55,11 @@ Examples:
 """)
     sys.exit(0)
 
+
 def run_cmd(cmd):
     try:
         return subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode().strip()
-    except:
+    except Exception:
         return "Unavailable"
 
 
@@ -64,7 +84,7 @@ def get_os(vmid, vmtype):
         output = run_cmd(["pct", "exec", vmid, "--", "cat", "/etc/os-release"])
         for line in output.splitlines():
             if line.startswith("PRETTY_NAME="):
-                return line.split("=")[1].strip('"')
+                return line.split("=", 1)[1].strip('"')
     return "VM (OS not directly accessible)"
 
 
@@ -85,13 +105,13 @@ def get_network_info(vmid, vmtype):
                         match = re.search(r"tag=(\d+)", line)
                         if match:
                             vlan = match.group(1)
-    except:
+    except Exception:
         pass
 
-    if ip == "Unknown":
+    if ip == "Unknown" and vmtype == "lxc":
         try:
             ip = run_cmd(["pct", "exec", vmid, "--", "hostname", "-I"]).split()[0]
-        except:
+        except Exception:
             pass
 
     return ip, vlan
@@ -117,6 +137,43 @@ def vlan_to_name(vlan):
     return "No VLAN defined"
 
 
+def generate_ssh_info(vmid, vmtype):
+    if vmtype != "lxc":
+        return "- **SSH Access**: Unknown (non-LXC VM)"
+
+    ssh_enabled = False
+    ssh_port = "22"
+    auth_method = "Unknown"
+
+    try:
+        output = run_cmd(["pct", "exec", vmid, "--", "pgrep", "-x", "sshd"])
+        ssh_enabled = bool(output)
+    except Exception:
+        pass
+
+    if not ssh_enabled:
+        return "- **SSH Access**: Disabled"
+
+    try:
+        config = run_cmd(["pct", "exec", vmid, "--", "cat", "/etc/ssh/sshd_config"])
+        for line in config.splitlines():
+            line = line.strip()
+            if line.startswith("Port"):
+                parts = line.split()
+                if len(parts) > 1:
+                    ssh_port = parts[1]
+            elif line.startswith("PasswordAuthentication") and "yes" in line.lower():
+                auth_method = "Password"
+            elif line.startswith("PubkeyAuthentication") and "yes" in line.lower():
+                auth_method = "SSH Key"
+    except Exception:
+        pass
+
+    return f"""- **SSH Access**: Enabled
+- **SSH Port**: {ssh_port}
+- **Auth Method**: {auth_method}"""
+
+
 def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
     today = datetime.date.today().isoformat()
     return f"""🖥️ **Container/VM Information**
@@ -130,9 +187,7 @@ def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
 🔒 **Access & Credentials**
 
 - **Web UI URL**: http://{ip}
-- **SSH Access**: Enabled
-  - **SSH Port**: 22
-  - **SSH Key Auth**: Check sshd_config
+{generate_ssh_info(vmid, vmtype)}
 
 🔄 **Update Process**
 
@@ -191,7 +246,7 @@ def do_self_update():
         response = requests.get(f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest")
         if response.status_code != 200:
             raise Exception("GitHub API error")
-        latest = response.json()["tag_name"].lstrip("v")
+        latest = response.json().get("tag_name", "").lstrip("v")
 
         if latest == VERSION:
             print(f"✅ You are on the latest version ({VERSION})")
@@ -283,7 +338,6 @@ def main():
         print("✅ nodeinfo successfully removed.")
         return
 
-    # Default behavior: handle VM/CT update
     vmid = sys.argv[1]
     vmtype = get_vm_type(vmid)
     hostname = get_hostname(vmid, vmtype)

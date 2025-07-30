@@ -3,6 +3,11 @@ VERSION := $(shell grep '^VERSION' $(PYFILE) | cut -d '"' -f2)
 DEBNAME := nodeinfo_v$(VERSION).deb
 DISTDIR := dist
 
+SED_INPLACE := sed -i
+ifeq ($(shell uname), Darwin)
+	SED_INPLACE := sed -i ''
+endif
+
 .PHONY: deb release
 
 deb:
@@ -10,8 +15,8 @@ deb:
 	@test -f nodeinfo/DEBIAN/control || { echo "❌ control file missing"; exit 1; }
 	@mkdir -p nodeinfo/DEBIAN
 	@sed "s/^Version: .*/Version: $(VERSION)/" nodeinfo/DEBIAN/control > nodeinfo/DEBIAN/control.tmp && mv nodeinfo/DEBIAN/control.tmp nodeinfo/DEBIAN/control
-	@sed -i '' "s|nodeinfo_v[0-9.]*.deb|nodeinfo_v$(VERSION).deb|g" README.md || true
-	@sed -i '' "s|vX.X.X|v$(VERSION)|g" README.md || true
+	@$(SED_INPLACE) "s|nodeinfo_v[0-9.]*.deb|nodeinfo_v$(VERSION).deb|g" README.md || true
+	@$(SED_INPLACE) "s|vX.X.X|v$(VERSION)|g" README.md || true
 	@mkdir -p $(DISTDIR)
 	dpkg-deb --build nodeinfo $(DISTDIR)/$(DEBNAME)
 

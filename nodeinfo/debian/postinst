@@ -42,7 +42,7 @@ fi
 
 echo "✅ nodeinfo installed successfully."
 
-if [ ! -s "$CONFIG_FILE" ] || grep -q '^#' "$CONFIG_FILE"; then
+if ! grep -q '^[[:space:]]*[0-9]\+=' "$CONFIG_FILE"; then
     echo "⚠️  No VLAN names are currently configured."
     if [ -t 0 ]; then
         echo -n "Would you like to edit your VLAN names now? (y/n): "
