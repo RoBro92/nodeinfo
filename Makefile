@@ -7,9 +7,10 @@ DISTDIR := dist
 
 deb:
 	@echo "🔧 Building .deb for version $(VERSION)..."
+	@mkdir -p nodeinfo/DEBIAN
 	@sed "s/^Version: .*/Version: $(VERSION)/" nodeinfo/DEBIAN/control > nodeinfo/DEBIAN/control.tmp && mv nodeinfo/DEBIAN/control.tmp nodeinfo/DEBIAN/control
-	@sed -i '' "s|nodeinfo_v[0-9.]*.deb|nodeinfo_v$(VERSION).deb|g" README.md
-	@sed -i '' "s|vX.X.X|v$(VERSION)|g" README.md
+	@sed -i '' "s|nodeinfo_v[0-9.]*.deb|nodeinfo_v$(VERSION).deb|g" README.md || true
+	@sed -i '' "s|vX.X.X|v$(VERSION)|g" README.md || true
 	@mkdir -p $(DISTDIR)
 	dpkg-deb --build nodeinfo $(DISTDIR)/$(DEBNAME)
 
