@@ -7,7 +7,7 @@ import os
 import re
 import requests
 
-VERSION = "0.2.8.9"
+VERSION = "0.2.9.0"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 if "--version" in sys.argv or "-v" in sys.argv:
@@ -296,10 +296,15 @@ def update_notes(vmid, vmtype, markdown):
             if confirm != "y":
                 print("❌ Update cancelled.")
                 return False
-            # Overwrite content with new block and exit
+            # Remove all comment lines, preserve non-comment config, then append new block and exit
             try:
+                new_lines = []
+                for line in content.splitlines():
+                    if not line.strip().startswith("#"):
+                        new_lines.append(line)
+                new_lines.append(new_block)
                 with open(config_path, "w") as f:
-                    f.write(new_block + "\n")
+                    f.write("\n".join(new_lines) + "\n")
                 print(f"✅ Notes overwritten with nodeinfo block in {config_path}")
                 return True
             except Exception as e:
