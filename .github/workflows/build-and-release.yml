@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'  # triggers on version tags like v1.2
+      - 'v*'  
 
 jobs:
   build-deb:
