@@ -7,6 +7,7 @@ DISTDIR := dist
 
 deb:
 	@echo "🔧 Building .deb for version $(VERSION)..."
+	@test -f nodeinfo/DEBIAN/control || { echo "❌ control file missing"; exit 1; }
 	@mkdir -p nodeinfo/DEBIAN
 	@sed "s/^Version: .*/Version: $(VERSION)/" nodeinfo/DEBIAN/control > nodeinfo/DEBIAN/control.tmp && mv nodeinfo/DEBIAN/control.tmp nodeinfo/DEBIAN/control
 	@sed -i '' "s|nodeinfo_v[0-9.]*.deb|nodeinfo_v$(VERSION).deb|g" README.md || true

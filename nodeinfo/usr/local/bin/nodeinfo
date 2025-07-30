@@ -6,7 +6,7 @@ import datetime
 import os
 import re
 
-VERSION = "0.2.4"
+VERSION = "0.2.5"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 
