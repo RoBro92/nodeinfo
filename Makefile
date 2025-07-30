@@ -22,8 +22,8 @@ release: deb
 	fi
 	git add .
 	git commit -m "Release v$(VERSION)" || true
-	git push origin main --tags
-
+	git push origin main
+	git push origin v$(VERSION)
 	@echo "🚀 Creating GitHub release and uploading .deb..."
 	@gh release delete v$(VERSION) -y || true
 	gh release create v$(VERSION) $(DISTDIR)/$(DEBNAME) --title "v$(VERSION)" --notes "$(subst \n,\\n,$(NOTES))"
