@@ -7,7 +7,7 @@ import os
 import re
 import requests
 
-VERSION = "0.2.8.7"
+VERSION = "0.2.8.8"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 if "--version" in sys.argv or "-v" in sys.argv:
@@ -281,9 +281,12 @@ def update_notes(vmid, vmtype, markdown):
 
         # Build new nodeinfo block
         new_block = "# === nodeinfo start ===\n"
-        for line in ("\n" + markdown).splitlines():
+        for line in markdown.strip().splitlines():
             new_block += f"# {line}\n"
+        new_block += "\n"  # Ensure newline before user notes
         new_block += user_notes_old
+        if not user_notes_old.endswith("\n"):
+            new_block += "\n"
         new_block += "# === nodeinfo end ===\n"
 
         # Replace existing block or append new block
