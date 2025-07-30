@@ -8,6 +8,10 @@
 ### Fixed
 - Fixed missing dependencies
 
+## [0.1.95] - 2025-07-30
+### Fixed
+- Fixed missing dependencies
+
 ## [0.1.9] - 2025-07-30
 ### Fixed
 - Fixed missing dependencies
