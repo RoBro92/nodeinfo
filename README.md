@@ -18,10 +18,12 @@ It outputs system details, update status, and network configuration, then writes
 ## 💡 Feature Requests & Support
 
 Have an idea or need help? Feel free to open an issue or start a discussion on [GitHub Issues](https://github.com/RoBro92/nodeinfo/issues). I'm actively improving `nodeinfo` and welcome your suggestions!
+
 ---
 ## 📘 Changelog
 
 See full changelog [here](./CHANGELOG.md)
+
 ---
 ## 🚀 Installation
 
