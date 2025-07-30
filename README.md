@@ -21,13 +21,13 @@ It outputs system details, update status, and network configuration, then writes
 1. Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
 
 ```bash 
-   wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.2.9.7.deb
+   wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.3.deb
    ```
    
 2. Install the package:
 
 ```bash
-sudo dpkg -i nodeinfo_v0.2.9.7.deb
+sudo dpkg -i nodeinfo_v0.3.deb
 ```
 
 3. Once installed you can run:
