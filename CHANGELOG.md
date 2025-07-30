@@ -5,9 +5,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.3.5] - 2025-07-30
+### Added
+- Supports `--debug` to enable debug mode and print outputs for each command, run again to disable.
+- Gateway and DNS resolver status 
+
+### Removed
+- User Notes due to persistance issues
+
 ## [0.2.8] - 2025-07-30
 ### Added
 - Updated summary note template to include information about VM/lxc OS update availability
+
+### Fixed
 - Fixed notes and issues not being preserver when running again
 
 ## [0.2.7] - 2025-07-30

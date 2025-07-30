@@ -90,6 +90,34 @@ This will:
 ## 📘 Changelog
 
 See full changelog [here](./CHANGELOG.md)
+
+## 💡 Feature Requests & Support
+
+Have an idea or need help? Feel free to open an issue or start a discussion on [GitHub Issues](https://github.com/RoBro92/nodeinfo/issues). I'm actively improving `nodeinfo` and welcome your suggestions!
+
+## 🛣️ Roadmap
+
+📅 See the full [ROADMAP.md](./ROADMAP.md) for upcoming plans.
+
+### 🔄 In Progress / Planned
+- 🔧 Scheduled Runs via Cron
+- 🔧 Cluster support to enable running and install on a single node
+- 📌 Persist `User Notes` section across runs
+- 📌 APT Package Repository
+- 📌 Service aware checks for docker/nginx/plex etc and report status of these services in the notes
+- 📌 Auto Update
+- 📌 Config files for defaults and behaviour 
+
+### ✅ Completed
+- Add debug mode (`--debug`)
+- SSH status detection (enabled, disabled, not installed)
+- DNS and gateway health checks
+- Preserves config lines and confirms overwrite
+- `--update` command for checking latest version
+- `.deb` installer with postinstall prompts
+
+
+  
 ## 📁 Repo Structure
 
 ---

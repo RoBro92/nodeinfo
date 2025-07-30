@@ -7,31 +7,20 @@ import os
 import re
 import requests
 
-VERSION = "0.3"
+VERSION = "0.3.5"
 GITHUB_REPO = "RoBro92/nodeinfo"
+
+DEBUG_FLAG_FILE = "/tmp/nodeinfo_debug"
+def is_debug_enabled():
+    return os.path.exists(DEBUG_FLAG_FILE)
+
+def debug_print(msg):
+    if is_debug_enabled():
+        print(f"🐞 {msg}")
 
 if "--version" in sys.argv or "-v" in sys.argv:
     print(f"nodeinfo version {VERSION}")
     sys.exit(0)
-
-if "--help" in sys.argv or "-h" in sys.argv:
-    def print_help():
-        print(f"""Usage: nodeinfo <vmid> [options]
-
-Options:
-  --version, -v     Show current nodeinfo version
-  --vlan            Open VLAN name config file for editing
-  update            Check for latest version and display download link
-  --help, -h        Show this help message
-
-Examples:
-  nodeinfo 101             # Inspect VM/LXC with ID 101
-  nodeinfo --vlan          # Edit VLAN name mappings
-  nodeinfo update          # Check if a new version is available
-  nodeinfo --version       # Show version number
-""")
-        sys.exit(0)
-    print_help()
 
 
 def print_version():
@@ -43,10 +32,12 @@ def print_help():
     print(f"""Usage: nodeinfo <vmid> [options]
 
 Options:
-  --version, -v     Show current nodeinfo version
+  --version.        Show current nodeinfo version
   --vlan            Open VLAN name config file for editing
   update            Check for latest version and display download link
-  --help, -h        Show this help message
+  --help.           Show this help message
+  --debug           Enable debug mode (creates {DEBUG_FLAG_FILE} file)
+  --remove          Uninstall nodeinfo and remove all files
 
 Examples:
   nodeinfo 101             # Inspect VM/LXC with ID 101
@@ -58,6 +49,8 @@ Examples:
 
 
 def run_cmd(cmd):
+    if is_debug_enabled():
+        print(f"🐞 Running command: {' '.join(cmd)}")
     try:
         return subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode().strip()
     except Exception:
@@ -66,18 +59,23 @@ def run_cmd(cmd):
 
 def get_vm_type(vmid):
     if run_cmd(["qm", "status", vmid]) != "Unavailable":
-        return "qemu"
+        vmtype = "qemu"
     elif run_cmd(["pct", "status", vmid]) != "Unavailable":
-        return "lxc"
+        vmtype = "lxc"
     else:
         print(f"❌ VM/CT ID {vmid} not found.")
         sys.exit(1)
+    debug_print(f"VM type determined: {vmtype}")
+    return vmtype
 
 
 def get_hostname(vmid, vmtype):
     if vmtype == "lxc":
-        return run_cmd(["pct", "exec", vmid, "--", "hostname"])
-    return f"vm-{vmid}"
+        hostname = run_cmd(["pct", "exec", vmid, "--", "hostname"])
+    else:
+        hostname = f"vm-{vmid}"
+    debug_print(f"Hostname: {hostname}")
+    return hostname
 
 
 def get_os(vmid, vmtype):
@@ -85,8 +83,15 @@ def get_os(vmid, vmtype):
         output = run_cmd(["pct", "exec", vmid, "--", "cat", "/etc/os-release"])
         for line in output.splitlines():
             if line.startswith("PRETTY_NAME="):
-                return line.split("=", 1)[1].strip('"')
-    return "VM (OS not directly accessible)"
+                os_name = line.split("=", 1)[1].strip('"')
+                debug_print(f"OS: {os_name}")
+                return os_name
+        os_name = "Unknown"
+        debug_print(f"OS: {os_name}")
+        return os_name
+    os_name = "VM (OS not directly accessible)"
+    debug_print(f"OS: {os_name}")
+    return os_name
 
 
 def get_network_info(vmid, vmtype):
@@ -115,6 +120,7 @@ def get_network_info(vmid, vmtype):
         except Exception:
             pass
 
+    debug_print(f"IP: {ip}, VLAN: {vlan}")
     return ip, vlan
 
 
@@ -211,8 +217,6 @@ def generate_ssh_info(vmid, vmtype):
 def get_os_update_info(vmid, vmtype):
     if vmtype != "lxc":
         return "OS version and update info not available for VMs"
-
-    # Try both traditional and newer stamp files, fallback gracefully
     try:
         update_stamp = run_cmd(["pct", "exec", vmid, "--", "stat", "-c", "%y", "/var/lib/apt/periodic/update-success-stamp"])
     except Exception:
@@ -243,8 +247,8 @@ def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan, gateway, dns_se
 - **Operating System**: {os_name}
 - **IP Address**: {ip}
 - **Gateway**: {gateway}
-- **DNS Servers**: {dns_servers}
 - **Gateway Reachable**: {gateway_status}
+- **DNS Servers**: {dns_servers}
 - **DNS Resolving**: {dns_status}
 - **VLAN/Subnet**: {vlan} – {vlan_to_name(vlan)}
 
@@ -258,7 +262,7 @@ def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan, gateway, dns_se
 {get_os_update_info(vmid, vmtype)}
 """
 
-    # Ensure "🖥️ **Container/VM Information**" is always on a new line
+
     markdown = re.sub(r'(?<!\n)🖥️', r'\n🖥️', markdown)
 
     return markdown
@@ -272,8 +276,10 @@ def get_network_status(vmid, vmtype):
         try:
             gateway = run_cmd(["pct", "exec", vmid, "--", "ip", "route", "show", "default"]).split()[2]
             gateway_status_check = run_cmd(["pct", "exec", vmid, "--", "ping", "-c", "1", "-w", "1", gateway])
-            if "1 received" in gateway_status_check:
+            if re.search(r"1 (packets )?received", gateway_status_check, re.IGNORECASE) or "1 received" in gateway_status_check:
                 gateway_status = "✅ Reachable"
+            if is_debug_enabled():
+                print("🔍 DEBUG - Gateway ping result:\n", gateway_status_check)
         except Exception:
             pass
 
@@ -291,20 +297,24 @@ def get_network_status(vmid, vmtype):
         except Exception:
             pass
 
+    debug_print(f"Gateway: {gateway}, Reachable: {gateway_status}")
+    debug_print(f"DNS Servers: {dns_servers}, Resolving: {dns_status}")
     return gateway, dns_servers, gateway_status, dns_status
 
 
 def update_notes(vmid, vmtype, markdown):
     if vmtype == "lxc":
         config_path = f"/etc/pve/lxc/{vmid}.conf"
+        debug_print("Writing notes to config file...")
         try:
             with open(config_path, "r") as f:
                 content = f.read()
         except Exception as e:
+            debug_print(f"Failed to write notes: {e}")
             print(f"❌ Failed to read config file for preservation: {e}")
             return False
 
-        # Check if any comment lines exist
+
         lines = content.splitlines()
         comment_lines = [line for line in lines if line.strip().startswith("#")]
         if comment_lines:
@@ -313,10 +323,10 @@ def update_notes(vmid, vmtype, markdown):
                 print("❌ Update cancelled.")
                 return False
 
-            # Remove all comment lines
+
             cleaned_lines = [line for line in lines if not line.strip().startswith("#")]
 
-            # Prepare new block with each line prepended by '# '
+
             new_block_lines = []
             for line in markdown.strip().splitlines():
                 new_block_lines.append(f"# {line}")
@@ -329,14 +339,15 @@ def update_notes(vmid, vmtype, markdown):
             try:
                 with open(config_path, "w") as f:
                     f.write(new_content)
+                debug_print("Notes successfully written.")
                 print(f"✅ Notes overwritten with nodeinfo block in {config_path}")
                 return True
             except Exception as e:
+                debug_print(f"Failed to write notes: {e}")
                 print(f"❌ Failed to write updated notes: {e}")
                 return False
 
         else:
-            # No existing non-comment content, just append the new block with '# ' prefix
             new_block_lines = []
             for line in markdown.strip().splitlines():
                 new_block_lines.append(f"# {line}")
@@ -349,13 +360,17 @@ def update_notes(vmid, vmtype, markdown):
             try:
                 with open(config_path, "w") as f:
                     f.write(new_content)
+                debug_print("Notes successfully written.")
                 print(f"✅ Notes written to {config_path}")
                 return True
             except Exception as e:
+                debug_print(f"Failed to write notes: {e}")
                 print(f"❌ Failed to write updated notes: {e}")
                 return False
 
+    debug_print("Writing notes to VM notes field...")
     subprocess.run(["qm", "set", vmid, "--notes", markdown])
+    debug_print("Notes successfully written.")
     print(f"✅ Notes updated for {vmtype.upper()} ID {vmid}")
     return True
 
@@ -419,6 +434,16 @@ def main():
 
     if sys.argv[1] in ("--help", "-h"):
         print_help()
+        return
+
+    if sys.argv[1] == "--debug":
+        if is_debug_enabled():
+            os.remove(DEBUG_FLAG_FILE)
+            print("🛑 Debug mode disabled.")
+        else:
+            with open(DEBUG_FLAG_FILE, "w") as f:
+                f.write("debug enabled")
+            print("🐞 Debug mode enabled.")
         return
 
     if sys.argv[1] == "update":
