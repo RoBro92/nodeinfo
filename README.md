@@ -13,6 +13,37 @@ It outputs system details, update status, and network configuration, then writes
 - 📦 Installable `.deb` package for quick deployment  
 - 🧱 Built for Proxmox
 - 🚀 GitHub Actions auto-build `.deb` releases 
+---
+
+### Example Output
+
+Below is a example output after running the command, this information is placed into the notes within the summary page and gives you a quick view of the container details. 
+
+ 🖥️ **Container/VM Information**
+ 
+ - **Hostname**: homepage
+ - **Type**: lxc
+ - **Operating System**: Debian GNU/Linux 12 (bookworm)
+ - **IP Address**: 192.168.70.13
+ - **Gateway**: 192.168.70.1
+ - **Gateway Reachable**: ✅ Reachable
+ - **DNS Servers**: 192.168.70.11
+ - **DNS Resolving**: ✅ Resolving
+ - **VLAN/Subnet**: 70 – Infrastructure
+ 
+ 🔒 **Access & Credentials**
+ 
+ - **Web UI URL**: http://192.168.70.13
+ - **SSH Access**: 🟢 Enabled
+ - **SSH Port**: 22
+ - **Auth Method**: Assumed Password
+ - **Allow Root Login**: Yes
+ 
+ 🔄 **Update Status**
+ 
+ - **Last apt update**: Unavailable
+ - **Package status**: Up to date
+
 
 ---
 ## 💡 Feature Requests & Support
