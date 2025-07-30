@@ -7,7 +7,7 @@ import os
 import re
 import requests
 
-VERSION = "0.2.9.1"
+VERSION = "0.2.9.3"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 if "--version" in sys.argv or "-v" in sys.argv:
@@ -242,10 +242,6 @@ def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
 🔄 **Update Process**
 
 {get_os_update_info(vmid, vmtype)}
-
-📝 **User Notes**
-
-*(You can safely add your notes here. This section will be preserved when nodeinfo updates.)*
 """
 
     # Ensure "🖥️ **Container/VM Information**" is always on a new line
@@ -269,34 +265,26 @@ def update_notes(vmid, vmtype, markdown):
 
         existing_nodeinfo_block_match = re.search(r"(?ms)# === nodeinfo start ===\n(.*?)# === nodeinfo end ===\n?", content)
 
-        # Check for any content outside nodeinfo block
         content_without_nodeinfo = content
         if existing_nodeinfo_block_match:
-            # Remove existing nodeinfo block from content to check for other content
             content_without_nodeinfo = content[:existing_nodeinfo_block_match.start()] + content[existing_nodeinfo_block_match.end():]
         content_without_nodeinfo = content_without_nodeinfo.strip()
 
-        # If notes already contain nodeinfo block and new block is identical, skip writing to avoid double appending
         new_block_lines = ["# === nodeinfo start ==="]
         for line in markdown.strip().splitlines():
             new_block_lines.append(f"# {line}")
-        new_block_lines.append("")
-        new_block_lines.append("\n📝 **User Notes**\n\n*(You can safely add your notes here. This section will be preserved when nodeinfo updates.)*\n")
         new_block_lines.append("# === nodeinfo end ===")
         new_block = "\n".join(new_block_lines)
 
         if existing_nodeinfo_block_match and existing_nodeinfo_block_match.group(0).strip() == new_block.strip():
-            # Already up to date
             print("ℹ️ Notes already up to date. No changes made.")
             return True
 
-        # If no existing nodeinfo block but other content exists, prompt user
         if not existing_nodeinfo_block_match and content_without_nodeinfo:
             confirm = input("⚠️ Notes already contain existing content. Overwrite with nodeinfo block? (y/N): ").strip().lower()
             if confirm != "y":
                 print("❌ Update cancelled.")
                 return False
-            # Remove all comment lines, preserve non-comment config, then append new block and exit
             try:
                 new_lines = []
                 for line in content.splitlines():
@@ -311,35 +299,11 @@ def update_notes(vmid, vmtype, markdown):
                 print(f"❌ Failed to write updated notes: {e}")
                 return False
 
-        # If existing nodeinfo block found, preserve user notes if present
-        if existing_nodeinfo_block_match:
-            block = existing_nodeinfo_block_match.group(1)
-            # Split out user notes section if present
-            parts = re.split(r"#?\s*📝 \*\*User Notes\*\*", block, maxsplit=1)
-            if len(parts) > 1:
-                user_notes_old = "📝 **User Notes**" + parts[1]
-            else:
-                user_notes_old = "\n📝 **User Notes**\n\n*(You can safely add your notes here. This section will be preserved when nodeinfo updates.)*\n"
-        else:
-            user_notes_old = "\n📝 **User Notes**\n\n*(You can safely add your notes here. This section will be preserved when nodeinfo updates.)*\n"
-
-        # Build new nodeinfo block with preserved user notes
-        new_block = "# === nodeinfo start ===\n\n"
-        for line in markdown.strip().splitlines():
-            new_block += f"# {line}\n"
-        new_block += "\n"  # Ensure spacing before user notes
-        new_block += user_notes_old
-        if not user_notes_old.endswith("\n"):
-            new_block += "\n"
-        new_block += "\n# === nodeinfo end ===\n"
-
-        # Replace existing block or append new block
         if existing_nodeinfo_block_match:
             new_content = content[: existing_nodeinfo_block_match.start()] + new_block + content[existing_nodeinfo_block_match.end() :]
         else:
             new_content = content + "\n" + new_block
 
-        # Write back to config file
         try:
             with open(config_path, "w") as f:
                 f.write(new_content)
@@ -347,9 +311,8 @@ def update_notes(vmid, vmtype, markdown):
             return True
         except Exception as e:
             print(f"❌ Failed to write updated notes: {e}")
-            return False 
+            return False
 
-    # Fallback for QEMU VMs: overwrite notes fully
     subprocess.run(["qm", "set", vmid, "--notes", markdown])
     print(f"✅ Notes updated for {vmtype.upper()} ID {vmid}")
     return True
