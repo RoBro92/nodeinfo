@@ -18,25 +18,29 @@ It outputs system details, update status, and network configuration, then writes
 
 ## 🚀 Installation
 
-Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
+1. Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
 
- ```bash 
-   `wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.2.3.deb`
+```bash 
+   wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.2.3.deb
    ```
    
-Install the package:
+2. Install the package:
 
-1. `sudo dpkg -i nodeinfo_v0.2.3.deb`
+```bash
+sudo dpkg -i nodeinfo_v0.2.3.deb`
+```
 
-Once installed you can run:
+3. Once installed you can run:
 
-3. `nodeinfo --help`
+```bash
+nodeinfo --help`
+```
 
 🛡️ Trusted Source
 
-	•	This package is built and signed by the official GitHub repo.
-	•	All releases are published through GitHub Actions from source.
-	•	No external shell scripts or hidden install logic — you control every step.
+•	This package is built and signed by the official GitHub repo.
+•	All releases are published through GitHub Actions from source.
+•	No external shell scripts or hidden install logic — you control every step.
 
 ## 🔧 Optional: Configure VLAN Names
 
