@@ -16,26 +16,25 @@ It outputs system details, update status, and network configuration, then writes
 
 ---
 
-## 🚀 Installation & Update
+## 🚀 Installation
 
 Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
 
-1. `wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.2.0.deb`
-2. `sudo dpkg -i nodeinfo_v0.2.0.deb`
-
-To update once installed run: - `nodeinfo update`
+1. `wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v0.2.1.deb`
+2. `sudo dpkg -i nodeinfo_v0.2.1.deb`
 
 ---
-## 📘 Changelog
 
-See full changelog [here](./CHANGELOG.md)
+### 🔧 Options
+| Flag / Command    | Description                                      |
+|-------------------|--------------------------------------------------|
+| `<vmid>`          | ID of the VM or LXC container to inspect         |
+| `--version`, `-v` | Show installed version of `nodeinfo`             |
+| `--vlan`          | Open the VLAN name mapping file in your editor   |
+| `update`          | Check for latest version and download            |
+| `--help`, `-h`    | Show usage help                                  |
+
 ---
-
-## 🧑‍💻 Usage
-
-Run the command from a Proxmox host shell as root:
-
-`nodeinfo <vmid>`
 
 ### Examples
 
@@ -50,9 +49,14 @@ Run the command from a Proxmox host shell as root:
 - `nodeinfo --version` – Show current version  
 - `nodeinfo update` – Check for updates  
 
----
 
+---
+## 📘 Changelog
+
+See full changelog [here](./CHANGELOG.md)
 ## 📁 Repo Structure
+
+---
 
 Key files and folders used for development and packaging:
 

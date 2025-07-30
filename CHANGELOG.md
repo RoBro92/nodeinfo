@@ -5,9 +5,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.2.0] - 2025-07-30
+## [0.2.1] - 2025-07-30
 ### Added
 -  Changelog
+-  template.md file added for future segregation of notes template
+-  Option to configure vlan names on install using `--vlan`
 
 ## [0.1.6] - 2025-07-30
 ### Added

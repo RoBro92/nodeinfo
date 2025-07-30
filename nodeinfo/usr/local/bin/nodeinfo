@@ -6,7 +6,7 @@ import datetime
 import os
 import re
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 GITHUB_REPO = "RoBro92/nodeinfo"
 
 
@@ -18,6 +18,23 @@ def print_version():
 if "--version" in sys.argv or "-v" in sys.argv:
     print_version()
 
+
+def print_help():
+    print(f"""Usage: nodeinfo <vmid> [options]
+
+Options:
+  --version, -v     Show current nodeinfo version
+  --vlan            Open VLAN name config file for editing
+  update            Check for latest version and display download link
+  --help, -h        Show this help message
+
+Examples:
+  nodeinfo 101             # Inspect VM/LXC with ID 101
+  nodeinfo --vlan          # Edit VLAN name mappings
+  nodeinfo update          # Check if a new version is available
+  nodeinfo --version       # Show version number
+""")
+    sys.exit(0)
 
 def run_cmd(cmd):
     try:
@@ -81,12 +98,23 @@ def get_network_info(vmid, vmtype):
 
 
 def vlan_to_name(vlan):
-    mapping = {
-        "9": "Infrastructure",
-        "10": "Hypervisors",
-        "20": "Media",
-    }
-    return mapping.get(vlan, "Unknown")
+    config_path = "/etc/nodeinfo/vlan.conf"
+    if not os.path.exists(config_path):
+        return "No VLAN defined"
+
+    try:
+        with open(config_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                tag, name = line.split("=", 1)
+                if tag.strip() == vlan:
+                    return name.strip()
+    except Exception as e:
+        print(f"⚠️ Error reading VLAN config: {e}")
+
+    return "No VLAN defined"
 
 
 def generate_markdown(vmid, vmtype, hostname, os_name, ip, vlan):
@@ -176,11 +204,28 @@ def do_self_update():
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: nodeinfo <vmid> | --version | update")
+        print("Usage: nodeinfo <vmid> | --version | update | --vlan")
         sys.exit(1)
+
+    if sys.argv[1] in ("--version", "-v"):
+        print_version()
+        return
 
     if sys.argv[1] == "update":
         do_self_update()
+        return
+    
+    if sys.argv[1] in ("--help", "-h"):
+        print_help()
+        return
+
+    if sys.argv[1] == "--vlan":
+        editor = os.environ.get("EDITOR", "nano")
+        config_path = "/etc/nodeinfo/vlan.conf"
+        try:
+            subprocess.run([editor, config_path])
+        except Exception as e:
+            print(f"❌ Failed to open VLAN config: {e}")
         return
 
     vmid = sys.argv[1]

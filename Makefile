@@ -1,5 +1,3 @@
-# Makefile for building and releasing nodeinfo
-
 PYFILE := nodeinfo/usr/local/bin/nodeinfo
 VERSION := $(shell grep '^VERSION' $(PYFILE) | cut -d '"' -f2)
 DEBNAME := nodeinfo_v$(VERSION).deb
@@ -9,7 +7,7 @@ DISTDIR := dist
 
 deb:
 	@echo "🔧 Building .deb for version $(VERSION)..."
-	@sed "s/^Version: .*/Version: $(VERSION)/" nodeinfo/debian/control > nodeinfo/debian/control.tmp && mv nodeinfo/debian/control.tmp nodeinfo/debian/control
+	@sed "s/^Version: .*/Version: $(VERSION)/" nodeinfo/DEBIAN/control > nodeinfo/DEBIAN/control.tmp && mv nodeinfo/DEBIAN/control.tmp nodeinfo/DEBIAN/control
 	@sed -i '' "s|nodeinfo_v[0-9.]*.deb|nodeinfo_v$(VERSION).deb|g" README.md
 	@sed -i '' "s|vX.X.X|v$(VERSION)|g" README.md
 	@mkdir -p $(DISTDIR)
@@ -27,5 +25,5 @@ release: deb
 	git push origin main --tags
 
 	@echo "🚀 Creating GitHub release and uploading .deb..."
-	-gh release delete v$(VERSION) -y || true
+	@gh release delete v$(VERSION) -y || true
 	gh release create v$(VERSION) $(DISTDIR)/$(DEBNAME) --title "v$(VERSION)" --notes "$(subst \n,\\n,$(NOTES))"

@@ -1,0 +1,40 @@
+#!/bin/bash
+
+CONFIG_DIR="/etc/nodeinfo"
+CONFIG_FILE="$CONFIG_DIR/vlan.conf"
+
+# Create config directory if it doesn't exist
+if [ ! -d "$CONFIG_DIR" ]; then
+    mkdir -p "$CONFIG_DIR"
+fi
+
+# Create vlan.conf if it doesn't exist
+if [ ! -f "$CONFIG_FILE" ]; then
+    cat <<EOF > "$CONFIG_FILE"
+# VLAN configuration file for nodeinfo
+# Format: <vlan_tag>=<vlan_name>
+# Example:
+# 10=Hypervisors
+# 20=Media
+# 99=IoT
+
+EOF
+    chmod 644 "$CONFIG_FILE"
+fi
+
+echo "✅ nodeinfo installed successfully."
+
+if [ ! -s "$CONFIG_FILE" ] || grep -q '^#' "$CONFIG_FILE"; then
+    echo "⚠️  No VLAN names are currently configured."
+    echo -n "Would you like to edit your VLAN names now? (y/n): "
+    read answer
+    if [ "$answer" = "y" ]; then
+        ${EDITOR:-nano} "$CONFIG_FILE"
+    else
+        echo "ℹ️  You can configure VLAN names later by running: nodeinfo --vlan"
+    fi
+else
+    echo "✅ VLAN config already exists at $CONFIG_FILE"
+fi
+
+exit 0
