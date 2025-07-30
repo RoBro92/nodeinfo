@@ -12,13 +12,16 @@ It outputs system details, update status, and network configuration, then writes
 - 🌐 Captures IP, VLAN, SSH, and web UI ports  
 - 📦 Installable `.deb` package for quick deployment  
 - 🧱 Built for Proxmox
+- 🔐 SSH integration for improved data collection from VMs
 - 🚀 GitHub Actions auto-build `.deb` releases 
+
 ---
 
-### Example Output
+## 🖥️ Example Output
 
-Below is a example output after running the command, this information is placed into the notes within the summary page and gives you a quick view of the container details. 
+Below is an example output placed into the VM or LXC Notes field:
 
+```
  🖥️ **Container/VM Information**
  
  - **Hostname**: homepage
@@ -30,70 +33,65 @@ Below is a example output after running the command, this information is placed 
  - **DNS Servers**: 192.168.70.11
  - **DNS Resolving**: ✅ Resolving
  - **VLAN/Subnet**: 70 – Infrastructure
- 
+
  🔒 **Access & Credentials**
- 
+
  - **Web UI URL**: http://192.168.70.13
  - **SSH Access**: 🟢 Enabled
  - **SSH Port**: 22
  - **Auth Method**: Assumed Password
  - **Allow Root Login**: Yes
- 
+
  🔄 **Update Status**
- 
+
  - **Last apt update**: Unavailable
  - **Package status**: Up to date
-
-
----
-## 💡 Feature Requests & Support
-
-Have an idea or need help? Feel free to open an issue or start a discussion on [GitHub Issues](https://github.com/RoBro92/nodeinfo/issues). I'm actively improving `nodeinfo` and welcome your suggestions!
+```
 
 ---
-## 📘 Changelog
 
-See full changelog [here](./CHANGELOG.md)
----
 ## 🚀 Installation
 
-1. Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page and install it on your Proxmox host:
+1. Download the latest `.deb` from the [Releases](https://github.com/RoBro92/nodeinfo/releases) page:
 
 ```bash 
 wget https://github.com/RoBro92/nodeinfo/releases/latest/download/nodeinfo_v1.1.0.deb
 ```
-   
+
 2. Install the package:
 
 ```bash
 dpkg -i nodeinfo_v1.1.0.deb
 ```
 
-3. Once installed you can run:
+3. Run the CLI tool:
 
 ```bash
-nodeinfo --help`
+nodeinfo --help
 ```
 
-🛡️ Trusted Source
-
+✅ **Trusted Source**  
 - This package is built and signed by the official GitHub repo.
 - All releases are published through GitHub Actions from source.
 - No external shell scripts or hidden install logic — you control every step.
 
+---
+
 ## 🔧 Optional: Configure VLAN Names
 
-4. After install, you can configure friendly VLAN names, you will be prompted to do this after install and can edit this file easily:
+After install, you can configure friendly VLAN names:
 
 ```bash
 nodeinfo --vlan
 ```
 
-This opens /etc/nodeinfo/vlan.conf where you can map VLAN tags to descriptions (e.g, 10=Hypervisors)
+This opens `/etc/nodeinfo/vlan.conf` where you can map VLAN tags to descriptions (e.g., `10=Hypervisors`).
+
+---
 
 ## ❌ Uninstall
 
-To remove nodeinfo completely you can run:
+To remove `nodeinfo` completely:
 
 ```bash
 nodeinfo --remove
@@ -102,87 +100,97 @@ nodeinfo --remove
 This will:
 
 - Remove the binary and config files
-- clean up /etc/nodeinfo
+- Clean up `/etc/nodeinfo`
 - Prompt before deletion
 
 ---
 
+## 🔐 SSH Integration (VMs)
+
+If a VM lacks QEMU Guest Agent support, `nodeinfo` can use SSH to retrieve system info:
+
+- The tool will prompt to set up SSH access automatically if needed.
+- If approved, it will:
+  1. Add the VM's IP to `ssh.conf`
+  2. Send the SSH key to the VM
+  3. Retest and update the Notes field using richer data via SSH
+
+You will be asked for the VM's root password during this one-time setup. SSH access is revoked after the run if you confirm the prompt.
+
+To manually review or configure:
+
+```bash
+nodeinfo --ssh
+```
+
+---
+
+## 🛣️ Roadmap
+
+📅 See full [ROADMAP.md](./ROADMAP.md) for upcoming plans.
+
+### 🔄 In Progress / Planned
+- 🔧 Scheduled runs via cron
+- 🔧 Cluster-wide single-node deployment
+- 📌 Persist `User Notes` section across runs
+- 📌 APT Package Repository
+- 📌 Auto-update support
+- 📌 Service-aware reporting (docker/nginx/plex etc.)
+- 📌 Template-based note rendering
+
+### ✅ Completed
+- Debug mode (`--debug`)
+- SSH status detection & key injection
+- DNS and gateway health checks
+- Safe overwrite confirmation
+- `--update` version checker
+- `.deb` installer with post-install prompts
+
+---
+
+## 📘 Changelog
+
+See full changelog [here](./CHANGELOG.md)
+
+---
+
+## 🧰 CLI Reference
+
 ### 🔧 Options
+
 | Flag / Command    | Description                                      |
 |-------------------|--------------------------------------------------|
 | `<vmid>`          | ID of the VM or LXC container to inspect         |
 | `--version`       | Show installed version of `nodeinfo`             |
-| `--vlan`          | Open the VLAN name mapping file in your editor   |
-| `update`          | Check for latest version and download            |
+| `--vlan`          | Edit VLAN name mappings                          |
+| `--ssh`           | Open SSH config file for editing                 |
+| `update`          | Check for latest version and download link       |
 | `--help`          | Show usage help                                  |
 | `--remove`        | Fully remove nodeinfo                            |
-| `-y/--yes`        | Install new notes and skip overwrite check       |
-| `--ssh`           | Open SSH config file for connecting to VMs       |
-
-### Examples
-
-- `nodeinfo 100` → Inspect VM 100, create the markdown file and place into the summary notes on the VM
-- `nodeinfo 202` → Inspect LXC 202  create the markdown file and place into the summary notes on the LXC
-- `nodeinfo 303` - Inspect VM/LXC 303 and skip prompt for override. (Will still promt if a VM for backup)
-
----
-### 🔐 SSH Integration
-
-If a VM lacks QEMU Guest Agent support, `nodeinfo` can use SSH to extract system data.
-
-To configure:
-
-1. Add the VM's IP and optional port in `/etc/nodeinfo/ssh.conf`: 105=192.168.10.45:22
-```bash
-nodeinfo --ssh
-```
-2. Deploy the SSH key: Make sure the VM allows SSH key login and root access (or change the user accordingly).
-```bash
-ssh-copy-id -i /etc/nodeinfo/id_nodeinfo.pub root@<VMIP>
-```
+| `-y/--yes`        | Skip note overwrite confirmation (not backup)    |
+| `--debug`         | Enable debug output and logs                     |
 
 ---
 
+### 💡 Examples
 
-## 🛣️ Roadmap
-
-📅 See the full [ROADMAP.md](./ROADMAP.md) for upcoming plans.
-
-### 🔄 In Progress / Planned
-- 🔧 Add argument when generating for what is included in the container to correctly update port for web ui.
-- 🔧 Scheduled Runs via Cron
-- 🔧 Cluster support to enable running and install on a single node
-- 📌 Persist `User Notes` section across runs
-- 📌 APT Package Repository
-- 📌 Service aware checks for docker/nginx/plex etc and report status of these services in the notes
-- 📌 Auto Update
-- 📌 Config files for defaults and behaviour 
-
-### ✅ Completed
-- Add debug mode (`--debug`)
-- SSH status detection (enabled, disabled, not installed)
-- DNS and gateway health checks
-- Preserves config lines and confirms overwrite
-- `--update` command for checking latest version
-- `.deb` installer with postinstall prompts
-
----
-  
-## 📁 Repo Structure
+- `nodeinfo 100` → Inspect VM 100 and update Notes
+- `nodeinfo 202` → Inspect LXC 202 and update Notes
+- `nodeinfo 303 -y` → Skip overwrite prompt for container 303 (still prompts for backup)
 
 ---
 
-Key files and folders used for development and packaging:
+## 🧾 Repo Structure
 
-- `.github/workflows/` – GitHub Actions for building and releasing `.deb` packages  
-- `Makefile` – Automates versioning, building, and release  
-- `nodeinfo/` – Debian packaging directory:
-  - `DEBIAN/control` – Metadata (version is auto-pulled from `nodeinfo.py`)  
-  - `DEBIAN/postinst` - Post install script that creates the necessary vlan.conf files and intiiates invite to update VLAN's
-  - `usr/local/bin/nodeinfo` – Main installed CLI executable  
-  - `usr/local/bin/share/nodeinfo/template.md` - This file is not in use currently but will be the location for the note template so it can be updated and versioned seperately. 
+| Path                        | Purpose                                      |
+|-----------------------------|----------------------------------------------|
+| `.github/workflows/`        | GitHub Actions for building & releasing      |
+| `Makefile`                  | Build automation for `.deb` release          |
+| `nodeinfo/DEBIAN/control`   | Package metadata                             |
+| `nodeinfo/DEBIAN/postinst`  | Post-install VLAN setup                      |
+| `usr/local/bin/nodeinfo`    | Main executable                              |
+| `usr/local/bin/share/...`   | Markdown templates (coming soon)             |
 
-> 💡 Only `usr/local/bin/nodeinfo` is included in the installed package. All other files support development.
+> 💡 Only `usr/local/bin/nodeinfo` is included in the installed package.
 
 ---
-
