@@ -132,6 +132,9 @@ nodeinfo --ssh
 ### 🔄 In Progress / Planned
 - 🔧 Scheduled runs via cron
 - 🔧 Cluster-wide single-node deployment
+- 🔧 Improved error reporting
+- 🔧 dry run support 
+- 🔧 Success summary
 - 📌 Persist `User Notes` section across runs
 - 📌 APT Package Repository
 - 📌 Auto-update support

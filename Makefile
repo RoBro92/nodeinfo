@@ -55,6 +55,7 @@ dev:
 	@mkdir -p $(DEV_BUILDDIR)/DEBIAN
 	@mkdir -p $(DEV_BUILDDIR)/usr/local/bin
 	@cp dev/DEBIAN/control $(DEV_BUILDDIR)/DEBIAN/control
+	@sed "s/^Version: .*/Version: $(DEV_VERSION)/" $(DEV_BUILDDIR)/DEBIAN/control > $(DEV_BUILDDIR)/DEBIAN/control.tmp && mv $(DEV_BUILDDIR)/DEBIAN/control.tmp $(DEV_BUILDDIR)/DEBIAN/control
 	@cp dev/DEBIAN/postinst $(DEV_BUILDDIR)/DEBIAN/postinst
 	@chmod 755 $(DEV_BUILDDIR)/DEBIAN/postinst
 	@cp dev/usr/local/bin/nodeinfodev $(DEV_BUILDDIR)/usr/local/bin/nodeinfo
