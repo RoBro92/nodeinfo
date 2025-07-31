@@ -40,7 +40,7 @@ EOF
     chmod 644 "$CONFIG_FILE"
 fi
 
-echo "✅ nodeinfo installed successfully."
+
 
 if ! grep -q '^[[:space:]]*[0-9]\+=' "$CONFIG_FILE"; then
     echo "⚠️  No VLAN names are currently configured."
@@ -60,6 +60,7 @@ else
 fi
 
 echo ""
+echo "✅ nodeinfo installed successfully."
 echo "Thank you for installing nodeinfo!"
 echo "Run 'nodeinfo --help' to see available commands."
 exit 0

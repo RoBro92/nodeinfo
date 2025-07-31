@@ -5,3 +5,7 @@ dist/
 *.deb
 .vscode/
 RELEASE.md
+dev/
+build/
+dev_build/
+send-dev.sh
