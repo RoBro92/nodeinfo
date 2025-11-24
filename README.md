@@ -197,5 +197,7 @@ See full changelog [here](./CHANGELOG.md)
 | `usr/local/bin/share/...`   | Markdown templates (coming soon)             |
 
 > 💡 Only `usr/local/bin/nodeinfo` is included in the installed package.
+>
+> test
 
 ---
