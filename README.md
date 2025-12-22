@@ -1,6 +1,6 @@
 # 📟 nodeinfo
 
-**nodeinfo** is a lightweight CLI tool for inspecting and documenting Proxmox virtual machines (VMs) and LXC containers.  
+nodeinfo is a lightweight CLI tool for inspecting and documenting Proxmox virtual machines (VMs) and LXC containers.  
 It outputs system details, update status, and network configuration, then writes a structured summary directly into the Notes field of the specified VM or container.
 
 ---
@@ -22,30 +22,30 @@ It outputs system details, update status, and network configuration, then writes
 Below is an example output placed into the VM or LXC Notes field:
 
 ```
- 🖥️ **Container/VM Information**
+ 🖥️ Container/VM Information
  
- - **Hostname**: homepage
- - **Type**: lxc
- - **Operating System**: Debian GNU/Linux 12 (bookworm)
- - **IP Address**: 192.168.70.13
- - **Gateway**: 192.168.70.1
- - **Gateway Reachable**: ✅ Reachable
- - **DNS Servers**: 192.168.70.11
- - **DNS Resolving**: ✅ Resolving
- - **VLAN/Subnet**: 70 – Infrastructure
-
- 🔒 **Access & Credentials**
-
- - **Web UI URL**: http://192.168.70.13
- - **SSH Access**: 🟢 Enabled
- - **SSH Port**: 22
- - **Auth Method**: Assumed Password
- - **Allow Root Login**: Yes
-
- 🔄 **Update Status**
-
- - **Last apt update**: Unavailable
- - **Package status**: Up to date
+ - Hostname: homepage
+ - Type: lxc
+ - Operating System: Debian GNU/Linux 12 (bookworm)
+ - IP Address: 192.168.70.13
+ - Gateway: 192.168.70.1
+ - Gateway Reachable: ✅ Reachable
+ - DNS Servers: 192.168.70.11
+ - DNS Resolving: ✅ Resolving
+ - VLAN/Subnet: 70 – Infrastructure
+ 
+ 🔒 Access & Credentials
+ 
+ - Web UI URL: http://192.168.70.13
+ - SSH Access: 🟢 Enabled
+ - SSH Port: 22
+ - Auth Method: Assumed Password
+ - Allow Root Login: Yes
+ 
+ 🔄 Update Status
+ 
+ - Last apt update: Unavailable
+ - Package status: Up to date
 ```
 
 ---
@@ -70,7 +70,7 @@ dpkg -i nodeinfo_v1.1.0.deb
 nodeinfo --help
 ```
 
-✅ **Trusted Source**  
+✅ Trusted Source  
 - This package is built and signed by the official GitHub repo.
 - All releases are published through GitHub Actions from source.
 - No external shell scripts or hidden install logic — you control every step.
